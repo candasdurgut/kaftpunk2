@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Synth">
+<title>Synth - Eğlence Fabrikası</title>
+<style>
+    :root {
+        --primary-hue: 0;
+        --primary-color: hsla(var(--primary-hue), 100%, 60%, 1);
+        --bg-color: rgba(20, 20, 20, 0.85);
+        --control-bg: rgba(30, 30, 30, 0.6);
+        --text-color: #ffffff;
+        --border-color: rgba(255, 255, 255, 0.2);
+        --accent-glow: 0 0 20px var(--primary-color);
+        --safe-area-top: env(safe-area-inset-top, 0px);
+        --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    
+    html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        background-color: #000;
+        color: var(--text-color);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        overflow: hidden;
+        touch-action: none;
+        user-select: none;
+    }
+
+    /* Ana Düzen */
+    #app-container {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        position: relative;
+    }
+
+    /* Oynama Alanı (Pad) */
+    #pad {
+        flex: 1;
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: radial-gradient(circle at center, rgba(40,40,40,0.5), #000);
+        cursor: crosshair;
+        overflow: hidden;
+    }
+
+    /* Görselleştirme Canvas'ı */
+    #waveAnimation {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+        pointer-events: none;
+    }
+
+    /* Bilgi Ekranları */
+    .hud-element {
+        position: absolute;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(10px);
+        border: 1px solid var(--border-color);
+        color: var(--primary-color);
+        padding: 5px 12px;
+        border-radius: 15px;
+        font-size: 14px;
+        font-weight: 600;
+        z-index: 10;
+        pointer-events: none;
+        transition: all 0.1s ease;
+    }
+
+    #noteDisplay {
+        top: max(20px, var(--safe-area-top));
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 28px;
+        text-shadow: 0 0 10px var(--primary-color);
+        border: 2px solid var(--primary-color);
+    }
+
+    #motionDisplay, #wahDisplay, #panDisplay {
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: none;
+    }
+
+    /* Kontrol Paneli (Alt Panel) */
+    #controls {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        max-height: 85vh;
+        background: var(--control-bg);
+        backdrop-filter: blur(25px);
+        -webkit-backdrop-filter: blur(25px);
+        border-top: 1px solid var(--border-color);
+        transform: translateY(calc(100% - 60px));
+        transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        overflow-y: auto;
+        z-index: 100;
+        padding: 15px;
+        padding-bottom: calc(60px + var(--safe-area-bottom));
+        /* Grid Layout */
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 15px;
+        scrollbar-width: none; /* Firefox */
+    }
+    
+    #controls::-webkit-scrollbar { display: none; }
+    #controls.expanded { transform: translateY(0); }
+
+    /* UI Bileşenleri */
+    button, select, input[type=range] {
+        font-family: inherit;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid var(--border-color);
+        color: var(--text-color);
+        border-radius: 8px;
+        padding: 10px;
+        outline: none;
+        transition: all 0.2s;
+    }
+
+    button {
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 13px;
+    }
+
+    button:active { transform: scale(0.96); }
+    button.active {
+        background: var(--primary-color);
+        color: #000;
+        box-shadow: 0 0 15px var(--primary-color);
+        border-color: transparent;
+    }
+    
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    select { appearance: none; cursor: pointer; width: 100%; }
+
+    label { font-size: 11px; color: #aaa; display: block; margin-bottom: 4px; }
+
+    input[type=range] {
+        -webkit-appearance: none;
+        width: 100%;
+        height: 4px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 2px;
+        margin: 8px 0;
+        border: none;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 18px;
+        height: 18px;
+        background: var(--text-color);
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+
+    /* Gruplama Kartları */
+    .panel-section {
+        grid-column: 1 / -1;
+        background: rgba(0,0,0,0.3);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .panel-title {
+        grid-column: 1 / -1;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--primary-color);
+        text-align: center;
+        font-weight: bold;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 5px;
+        margin-bottom: 5px;
+    }
+
+    .control-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .value-display {
+        float: right;
+        font-size: 10px;
+        color: var(--primary-color);
+    }
+
+    /* Özel Butonlar */
+    #toggleControls {
+        position: fixed;
+        bottom: calc(10px + var(--safe-area-bottom));
+        right: 20px;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: var(--control-bg);
+        border: 1px solid var(--border-color);
+        color: var(--text-color);
+        font-size: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 101;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        backdrop-filter: blur(10px);
+    }
+
+    /* Modallar ve Mesajlar */
+    #statusMessage {
+        position: fixed;
+        bottom: 80px;
+        left: 50%;
+        transform: translateX(-50%) translateY(20px);
+        background: rgba(0,0,0,0.8);
+        border: 1px solid var(--primary-color);
+        color: var(--text-color);
+        padding: 10px 20px;
+        border-radius: 20px;
+        font-size: 13px;
+        opacity: 0;
+        transition: all 0.3s;
+        pointer-events: none;
+        z-index: 200;
+    }
+    #statusMessage.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.8);
+        backdrop-filter: blur(5px);
+        z-index: 300;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+    }
+    .modal-content {
+        background: #222;
+        border: 1px solid var(--border-color);
+        border-radius: 15px;
+        padding: 25px;
+        text-align: center;
+        max-width: 400px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .modal-buttons { display: flex; gap: 10px; margin-top: 20px; }
+    .modal-buttons button { flex: 1; }
+
+    /* Şeker Yağmuru */
+    .candy {
+        position: fixed;
+        pointer-events: none;
+        z-index: 9999;
+        font-size: 24px;
+        animation: fall linear forwards;
+    }
+    @keyframes fall {
+        to { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+    }
+
+    /* Nota Cetveli */
+    #noteRuler {
+        position: absolute;
+        right: 0; top: 0; bottom: 0;
+        width: 40px;
+        background: rgba(0,0,0,0.5);
+        border-left: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 10px 0;
+        z-index: 5;
+        font-size: 10px;
+        color: #aaa;
+        text-align: center;
+    }
+    .ruler-note { border-bottom: 1px solid rgba(255,255,255,0.05); flex: 1; display:flex; align-items:center; justify-content:center;}
+
+    #credit {
+        text-align: center;
+        grid-column: 1 / -1;
+        font-size: 12px;
+        color: #666;
+        text-decoration: none;
+        padding: 10px;
+        cursor: pointer;
+    }
+    #credit:hover { color: var(--primary-color); }
+
+</style>
+</head>
+<body>
+
+<div id="app-container">
+    <!-- Oynama Alanı -->
+    <div id="pad">
+        <div id="noteDisplay">READY</div>
+        <div id="motionDisplay">Eğim:0°</div>
+        <div id="wahDisplay">Wah:KAPALI</div>
+        <div id="panDisplay">Pan:0%</div>
+        <div id="noteRuler"></div>
+        <canvas id="waveAnimation"></canvas>
+    </div>
+
+    <!-- Panel Açma Butonu -->
+    <button id="toggleControls">⚙️</button>
+
+    <!-- Kontrol Paneli -->
+    <div id="controls">
+        
+        <!-- Ana Kontroller -->
+        <div class="panel-section">
+            <div class="panel-title">Ana Kumanda</div>
+            <div class="control-row">
+                <button id="startBtn">▶ BAŞLAT</button>
+                <button id="stopBtn" disabled>■ DUR</button>
+                <button id="motionBtn">📱 Hareket</button>
+                <button id="panBtn">🎧 Pan</button>
+                <button id="octDown">Oktav -</button>
+                <button id="octUp">Oktav +</button>
+            </div>
+        </div>
+
+        <!-- Ses Ayarları -->
+        <div class="panel-section">
+            <div class="panel-title">Ses Mikseri</div>
+            <div class="control-group">
+                <label>Ana Ses <span id="masterVolumeValue" class="value-display">60</span></label>
+                <input type="range" id="masterVolume" min="0" max="100" value="60">
+            </div>
+            <div class="control-group">
+                <label>Synth Ses <span id="synthVolumeValue" class="value-display">80</span></label>
+                <input type="range" id="synthVolume" min="0" max="100" value="80">
+            </div>
+            <div class="control-group">
+                <label>Kick Ses <span id="kickVolumeValue" class="value-display">80</span></label>
+                <input type="range" id="kickVolume" min="0" max="100" value="80">
+            </div>
+        </div>
+
+        <!-- Synth & Efektler -->
+        <div class="panel-section">
+            <div class="panel-title">Synth & Efektler</div>
+            <div class="control-row">
+                <div class="control-group">
+                    <label>Dalga Formu</label>
+                    <select id="waveSelect">
+                        <option value="sawtooth">Testere (Saw)</option>
+                        <option value="triangle">Üçgen (Tri)</option>
+                        <option value="square">Kare (Sqr)</option>
+                        <option value="sine">Sinüs (Sine)</option>
+                        <option value="pulse">Pulse</option>
+                        <option value="fm">FM</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Detune <span id="detuneValue" class="value-display">15</span></label>
+                    <input type="range" id="detuneRange" min="0" max="100" value="15">
+                </div>
+            </div>
+            <div class="control-group">
+                <label>Filtre Frekans <span id="filterFreqValue" class="value-display">8000</span></label>
+                <input type="range" id="filterFreq" min="200" max="10000" value="8000" step="100">
+            </div>
+            <div class="control-group">
+                <label>Filtre Rezonans <span id="filterResoValue" class="value-display">1</span></label>
+                <input type="range" id="filterReso" min="0.1" max="20" value="1" step="0.5">
+            </div>
+            <div class="panel-title" style="margin-top:10px;">Efekt Anahtarları</div>
+            <div class="control-row">
+                <button id="toggleDist">Distortion</button>
+                <button id="toggleAutoWah">Auto Wah</button>
+                <button id="toggleFlanger">Flanger</button>
+                <button id="toggleChorus">Chorus</button>
+                <button id="toggleTremolo">Tremolo</button>
+                <button id="toggleDelay">Delay</button>
+                <button id="toggleReverb">Reverb</button>
+            </div>
+        </div>
+
+        <!-- Ritim -->
+        <div class="panel-section">
+            <div class="panel-title">Dinamik Ritim</div>
+            <div class="control-row">
+                <div class="control-group">
+                    <label>Hız (BPM) <span id="rhythmSpeedValue" class="value-display">120</span></label>
+                    <input type="range" id="rhythmSpeed" min="30" max="200" value="120">
+                </div>
+                <div class="control-group">
+                    <label>Şiddet <span id="rhythmIntensityValue" class="value-display">50</span></label>
+                    <input type="range" id="rhythmIntensity" min="0" max="100" value="50">
+                </div>
+            </div>
+            <div class="control-row">
+                <button id="startRhythmBtn">Ritmi Başlat</button>
+                <button id="stopRhythmBtn" disabled>Ritmi Durdur</button>
+            </div>
+        </div>
+
+        <!-- Kick Davul -->
+        <div class="panel-section">
+            <div class="panel-title">Kick Davul</div>
+            <div class="control-group">
+                <label>Pattern</label>
+                <select id="kickPattern">
+                    <option value="4/4">4/4 Beat</option>
+                    <option value="2/4">2/4 Beat</option>
+                    <option value="breakbeat">Breakbeat</option>
+                    <option value="offbeat">Offbeat</option>
+                    <option value="techno">Techno</option>
+                    <option value="house">House</option>
+                </select>
+            </div>
+            <div class="control-row">
+                <div class="control-group">
+                    <label>Punch <span id="kickPunchValue" class="value-display">70</span></label>
+                    <input type="range" id="kickPunch" min="0" max="100" value="70">
+                </div>
+                <div class="control-group">
+                    <label>Drive <span id="kickDistortionValue" class="value-display">40</span></label>
+                    <input type="range" id="kickDistortion" min="0" max="100" value="40">
+                </div>
+            </div>
+            <button id="kickSoloBtn" style="width:100%; margin-top:5px;">Kick Solo Modu</button>
+        </div>
+
+        <!-- Animasyonlar -->
+        <div class="panel-section">
+            <div class="panel-title">Görsel Efektler</div>
+            <div class="control-group">
+                <select id="animationSelect">
+                    <option value="network" selected>Ağ (Network)</option>
+                    <option value="psychedelic">Psikedelik</option>
+                    <option value="oscilloscope">Osiloskop</option>
+                    <option value="circularWave">Dairesel Dalga</option>
+                    <option value="matrix">Matrix</option>
+                    <option value="none">Yok</option>
+                </select>
+            </div>
+            <div class="control-row">
+                <div class="control-group">
+                    <label>Hız <span id="animSpeedValue" class="value-display">1</span></label>
+                    <input type="range" id="animSpeed" min="0.1" max="3" value="1" step="0.1">
+                </div>
+                <div class="control-group">
+                    <label>Yoğunluk <span id="animIntensityValue" class="value-display">1</span></label>
+                    <input type="range" id="animIntensity" min="0.1" max="2" value="1" step="0.1">
+                </div>
+            </div>
+        </div>
+
+        <a href="#" id="credit">Designed by C.D. v0.32 (Tıkla)</a>
+    </div>
+</div>
+
+<div id="statusMessage"></div>
+
+<div id="permissionModal" class="modal">
+    <div class="modal-content">
+        <h3>Hareket Erişimi Gerekli</h3>
+        <p>Cihazınızın eğimini (gyro) kullanarak sesi kontrol etmek için izin gerekiyor.</p>
+        <div class="modal-buttons">
+            <button id="permissionDeny">Reddet</button>
+            <button id="permissionAllow">İzin Ver</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/**
+ * Synth - Eğlence Fabrikası
+ * Tek dosya, kütüphanesiz Vanilla JS + Web Audio API
+ */
+
+// --- Durum Yönetimi (State) ---
+const AppState = {
+    audioCtx: null,
+    isPlaying: false,
+    baseFreq: 261.63, // C4
+    octaveOffset: 0,
+    motionEnabled: false,
+    panEnabled: false,
+    rhythmActive: false,
+    kickSolo: false,
+    rhythmIndex: 0,
+    oscillators: [],
+    animationId: null,
+    themeHue: 0,
+    
+    // Ses Parametreleri
+    settings: {
+        waveType: 'sawtooth',
+        detune: 15,
+        filterFreq: 8000,
+        filterRes: 1,
+        volume: { master: 0.6, synth: 0.8, kick: 0.8 },
+        rhythm: { bpm: 120, intensity: 0.5 },
+        kick: { punch: 70, bass: 90, drive: 40, pattern: '4/4' },
+        anim: { type: 'network', speed: 1, intensity: 1 }
+    },
+    
+    // Efekt Durumları
+    effects: {
+        dist: false, autoWah: false, flanger: false, 
+        chorus: false, tremolo: false, delay: false, reverb: false
+    }
+};
+
+// --- Ses Düğümleri (Nodes) ---
+let nodes = {};
+
+// --- Sabitler ---
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const PATTERN_MAP = {
+    '4/4':      [1,0,0.5,0,1,0,0.5,0],
+    '2/4':      [1,0,0,0,1,0,0,0],
+    'breakbeat':[1,0,0.7,0,0.8,0.3,0,0.6],
+    'offbeat':  [0,1,0,0.8,0,1,0,0.7],
+    'techno':   [1,0,0,0.5,1,0,0,0.5],
+    'house':    [1,0,0.8,0,0.6,0,0.8,0]
+};
+
+// --- DOM Elementleri ---
+const el = (id) => document.getElementById(id);
+const elements = {
+    pad: el('pad'),
+    canvas: el('waveAnimation'),
+    noteDisplay: el('noteDisplay'),
+    controls: el('controls'),
+    status: el('statusMessage'),
+    modal: el('permissionModal'),
+    toggleControls: el('toggleControls')
+};
+
+// --- Yardımcı Fonksiyonlar ---
+
+function showStatus(msg, duration = 2000) {
+    if (!elements.status) return;
+    elements.status.textContent = msg;
+    elements.status.classList.add('show');
+    clearTimeout(elements.status.timer);
+    elements.status.timer = setTimeout(() => {
+        elements.status.classList.remove('show');
+    }, duration);
+}
+
+function updateThemeColor(noteName) {
+    const index = NOTE_NAMES.indexOf(noteName);
+    if (index !== -1) {
+        // Notaya göre renk hesapla
+        const hue = (index / 12) * 360;
+        document.documentElement.style.setProperty('--primary-hue', hue);
+        AppState.themeHue = hue;
+    }
+}
+
+function freqToNote(freq) {
+    const A4 = 440;
+    const semitones = 12 * Math.log2(freq / A4);
+    const noteIndex = Math.round(semitones + 9) % 12;
+    const octave = Math.floor(Math.round(semitones + 9) / 12) + 4;
+    return { name: NOTE_NAMES[noteIndex], full: `${NOTE_NAMES[noteIndex]}${octave}` };
+}
+
+// --- Ses Motoru (Audio Engine) ---
+
+async function initAudio() {
+    if (AppState.audioCtx) return;
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    AppState.audioCtx = new AudioContext();
+    
+    // Master Gain
+    nodes.master = AppState.audioCtx.createGain();
+    nodes.master.connect(AppState.audioCtx.destination);
+    
+    // Synth Gain
+    nodes.synthGain = AppState.audioCtx.createGain();
+    nodes.synthGain.gain.value = AppState.settings.volume.synth;
+    
+    // Kick Gain
+    nodes.kickGain = AppState.audioCtx.createGain();
+    nodes.kickGain.gain.value = AppState.settings.volume.kick;
+    
+    // Panner
+    nodes.panner = AppState.audioCtx.createStereoPanner();
+    nodes.panner.pan.value = 0;
+
+    // Filtre
+    nodes.filter = AppState.audioCtx.createBiquadFilter();
+    nodes.filter.type = 'lowpass';
+    nodes.filter.frequency.value = AppState.settings.filterFreq;
+    nodes.filter.Q.value = AppState.settings.filterRes;
+
+    // Efektler Oluştur
+    createEffects();
+
+    // Bağlantıları Kur
+    connectAudioGraph();
+    
+    // Osilatörleri Başlat (Sessizce)
+    createOscillators();
+}
+
+function createEffects() {
+    const ctx = AppState.audioCtx;
+    
+    // Distortion
+    nodes.dist = ctx.createWaveShaper();
+    nodes.dist.curve = makeDistortionCurve(0);
+    nodes.distGain = ctx.createGain();
+    nodes.distGain.gain.value = 0;
+
+    // Delay
+    nodes.delay = ctx.createDelay(1.0);
+    nodes.delay.delayTime.value = 0.3;
+    nodes.delayFeedback = ctx.createGain();
+    nodes.delayFeedback.gain.value = 0.4;
+
+    // Reverb (Impulse Response)
+    nodes.reverb = ctx.createConvolver();
+    nodes.reverb.buffer = createImpulseResponse(2, 2.0, false);
+    nodes.reverbGain = ctx.createGain();
+    nodes.reverbGain.gain.value = 0;
+
+    // AutoWah (LFO -> Filter Freq)
+    nodes.autoWah = ctx.createBiquadFilter();
+    nodes.autoWah.type = 'bandpass';
+    nodes.autoWah.Q.value = 10;
+    nodes.lfo = ctx.createOscillator();
+    nodes.lfo.frequency.value = 2;
+    nodes.lfoGain = ctx.createGain();
+    nodes.lfoGain.gain.value = 0;
+    nodes.lfo.start();
+
+    // Tremolo (LFO -> Gain)
+    nodes.tremoloGain = ctx.createGain();
+    nodes.tremoloOsc = ctx.createOscillator();
+    nodes.tremoloOsc.frequency.value = 5;
+    nodes.tremoloDepth = ctx.createGain();
+    nodes.tremoloDepth.gain.value = 0;
+    nodes.tremoloOsc.start();
+    
+    // Chorus / Flanger (Basitleştirilmiş Delay)
+    nodes.chorusDelay = ctx.createDelay(0.05);
+    nodes.chorusLFO = ctx.createOscillator();
+    nodes.chorusLFO.frequency.value = 0.5;
+    nodes.chorusLFO.start();
+}
+
+function makeDistortionCurve(amount) {
+    const k = typeof amount === 'number' ? amount : 50;
+    const n_samples = 44100;
+    const curve = new Float32Array(n_samples);
+    const deg = Math.PI / 180;
+    for (let i = 0; i < n_samples; ++i) {
+        const x = i * 2 / n_samples - 1;
+        curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
+    }
+    return curve;
+}
+
+function createImpulseResponse(duration, decay, reverse) {
+    const sampleRate = AppState.audioCtx.sampleRate;
+    const length = sampleRate * duration;
+    const impulse = AppState.audioCtx.createBuffer(2, length, sampleRate);
+    const left = impulse.getChannelData(0);
+    const right = impulse.getChannelData(1);
+    for (let i = 0; i < length; i++) {
+        const n = reverse ? length - i : i;
+        left[i] = (Math.random() * 2 - 1) * Math.pow(1 - n / length, decay);
+        right[i] = (Math.random() * 2 - 1) * Math.pow(1 - n / length, decay);
+    }
+    return impulse;
+}
+
+function connectAudioGraph() {
+    // Önce her şeyi kes
+    nodes.synthGain.disconnect();
+    nodes.kickGain.disconnect();
+    nodes.panner.disconnect();
+
+    // Synth Zinciri
+    let synthSource = nodes.synthGain;
+    
+    if (AppState.effects.dist) {
+        nodes.dist.curve = makeDistortionCurve(50);
+        nodes.distGain.gain.value = 1;
+        synthSource.connect(nodes.dist);
+        synthSource = nodes.dist;
+    } else {
+        nodes.distGain.gain.value = 0;
+    }
+
+    // Filtre her zaman aktif (parametreyle kontrol edilir)
+    synthSource.connect(nodes.filter);
+    synthSource = nodes.filter;
+
+    if (AppState.effects.autoWah) {
+        nodes.lfoGain.gain.value = 400; // Sweep genişliği
+        nodes.lfo.connect(nodes.lfoGain);
+        nodes.lfoGain.connect(nodes.autoWah.frequency);
+        nodes.autoWah.frequency.value = 1000;
+        synthSource.connect(nodes.autoWah);
+        synthSource = nodes.autoWah;
+    } else {
+        nodes.lfoGain.gain.value = 0;
+    }
+
+    if (AppState.effects.delay) {
+        synthSource.connect(nodes.delay);
+        synthSource = nodes.delay;
+        nodes.delay.connect(nodes.delayFeedback);
+        nodes.delayFeedback.connect(nodes.delay);
+    }
+
+    if (AppState.effects.reverb) {
+        nodes.reverbGain.gain.value = 0.5;
+        synthSource.connect(nodes.reverb);
+        synthSource = nodes.reverb;
+    }
+
+    if (AppState.effects.tremolo) {
+        nodes.tremoloDepth.gain.value = 0.5;
+        nodes.tremoloOsc.connect(nodes.tremoloDepth);
+        synthSource.connect(nodes.tremoloGain);
+        nodes.tremoloDepth.connect(nodes.tremoloGain.gain);
+        synthSource = nodes.tremoloGain;
+    }
+
+    // Panner -> Master
+    synthSource.connect(nodes.panner);
+    
+    // Kick Solo Kontrolü
+    if (AppState.kickSolo) {
+        nodes.panner.disconnect();
+        nodes.kickGain.connect(nodes.master);
+    } else {
+        nodes.panner.connect(nodes.master);
+        nodes.kickGain.connect(nodes.master);
+    }
+}
+
+function createOscillators() {
+    const now = AppState.audioCtx.currentTime;
+    // Unison / Detuned Oscillators
+    const count = 5; // Ses kalitesi için osilatör sayısı
+    
+    for(let i=0; i<count; i++) {
+        const osc = AppState.audioCtx.createOscillator();
+        osc.type = AppState.settings.waveType;
+        
+        // Detune hesapla
+        const detuneVal = (i - Math.floor(count/2)) * AppState.settings.detune;
+        osc.detune.value = detuneVal;
+        
+        osc.connect(nodes.synthGain);
+        osc.start(now);
+        AppState.oscillators.push(osc);
+    }
+}
+
+function updatePitch(freq) {
+    if (!AppState.audioCtx) return;
+    AppState.baseFreq = freq;
+    const now = AppState.audioCtx.currentTime;
+    AppState.oscillators.forEach(osc => {
+        osc.frequency.setTargetAtTime(freq, now, 0.01);
+    });
+    
+    // UI Güncelle
+    const note = freqToNote(freq);
+    el('noteDisplay').textContent = note.full;
+    updateThemeColor(note.name);
+}
+
+function playKick() {
+    if (!AppState.audioCtx) return;
+    const ctx = AppState.audioCtx;
+    const t = ctx.currentTime;
+    
+    // Pattern Kontrolü
+    const pattern = PATTERN_MAP[AppState.settings.kick.pattern] || [1,0];
+    const velocity = pattern[AppState.rhythmIndex % pattern.length];
+    
+    // Şiddet kontrolü
+    if (Math.random() > AppState.settings.rhythm.intensity || velocity === 0) {
+        AppState.rhythmIndex++;
+        return;
+    }
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    // Kick Sesi Tasarımı (Synthesis)
+    const punch = AppState.settings.kick.punch / 100;
+    const startFreq = 150 + (50 * punch);
+    const endFreq = 30;
+    
+    osc.frequency.setValueAtTime(startFreq, t);
+    osc.frequency.exponentialRampToValueAtTime(endFreq, t + 0.5);
+    
+    // Envelope
+    gain.gain.setValueAtTime(1, t);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
+    
+    // Drive
+    if (AppState.settings.kick.drive > 0) {
+        const dist = ctx.createWaveShaper();
+        dist.curve = makeDistortionCurve(AppState.settings.kick.drive);
+        osc.connect(dist);
+        dist.connect(gain);
+    } else {
+        osc.connect(gain);
+    }
+    
+    gain.connect(nodes.kickGain);
+    osc.start(t);
+    osc.stop(t + 0.6);
+
+    // Görsel Efekt
+    triggerPulse();
+
+    AppState.rhythmIndex++;
+}
+
+function triggerPulse() {
+    // Basit bir görsel pulse efekti
+    elements.canvas.style.filter = `brightness(1.5) hue-rotate(${Math.random()*90}deg)`;
+    setTimeout(() => {
+        elements.canvas.style.filter = 'none';
+    }, 50);
+}
+
+// --- Görselleştirme (Visualizer) ---
+
+const Visuals = {
+    ctx: elements.canvas.getContext('2d'),
+    width: 0,
+    height: 0,
+    particles: [],
+    
+    init() {
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        this.initParticles();
+    },
+    
+    resize() {
+        this.width = elements.canvas.width = window.innerWidth;
+        this.height = elements.canvas.height = window.innerHeight;
+        this.initParticles();
+    },
+    
+    initParticles() {
+        this.particles = [];
+        const count = Math.min(60, (this.width * this.height) / 8000);
+        for(let i=0; i<count; i++) {
+            this.particles.push({
+                x: Math.random() * this.width,
+                y: Math.random() * this.height,
+                vx: (Math.random() - 0.5) * AppState.settings.anim.speed,
+                vy: (Math.random() - 0.5) * AppState.settings.anim.speed
+            });
+        }
+    },
+    
+    draw() {
+        if (!AppState.isPlaying) return;
+        
+        const ctx = this.ctx;
+        const time = Date.now() * 0.001 * AppState.settings.anim.speed;
+        
+        // Arkaplan temizle (Efekt için hafif iz bırakır)
+        ctx.fillStyle = 'rgba(0,0,0,0.1)';
+        ctx.fillRect(0, 0, this.width, this.height);
+        
+        const type = AppState.settings.anim.type;
+        
+        if (type === 'network') {
+            ctx.strokeStyle = `hsla(${AppState.themeHue}, 100%, 60%, 0.3)`;
+            ctx.fillStyle = `hsla(${AppState.themeHue}, 100%, 70%, 0.8)`;
+            
+            this.particles.forEach((p, i) => {
+                p.x += p.vx;
+                p.y += p.vy;
+                
+                if(p.x < 0 || p.x > this.width) p.vx *= -1;
+                if(p.y < 0 || p.y > this.height) p.vy *= -1;
+                
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+                ctx.fill();
+                
+                for(let j=i+1; j<this.particles.length; j++) {
+                    const p2 = this.particles[j];
+                    const dist = Math.hypot(p.x - p2.x, p.y - p2.y);
+                    if(dist < 150 * AppState.settings.anim.intensity) {
+                        ctx.beginPath();
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(p2.x, p2.y);
+                        ctx.stroke();
+                    }
+                }
+            });
+        } 
+        else if (type === 'psychedelic') {
+            const cx = this.width / 2;
+            const cy = this.height / 2;
+            ctx.save();
+            ctx.translate(cx, cy);
+            for(let i=0; i<5; i++) {
+                ctx.rotate(time * 0.1 + i);
+                ctx.strokeStyle = `hsla(${(AppState.themeHue + i*30) % 360}, 100%, 60%, 0.5)`;
+                ctx.beginPath();
+                const r = 50 + Math.sin(time * 2 + i) * 100 * AppState.settings.anim.intensity;
+                ctx.rect(-r/2, -r/2, r, r);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+        else if (type === 'oscilloscope') {
+            ctx.strokeStyle = '#0f0';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for(let x=0; x<this.width; x++) {
+                const y = this.height/2 + Math.sin(x * 0.02 + time * 5) * 100 * AppState.settings.anim.intensity * Math.sin(time);
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+        else if (type === 'matrix') {
+            ctx.fillStyle = `hsla(${AppState.themeHue}, 100%, 60%, 0.8)`;
+            ctx.font = '15px monospace';
+            if (Math.random() > 0.9) {
+                const x = Math.floor(Math.random() * (this.width / 20)) * 20;
+                const char = String.fromCharCode(0x30A0 + Math.random() * 96);
+                ctx.fillText(char, x, 0); // Başlat
+            }
+            // Basit simülasyon için yeterli
+        }
+
+        requestAnimationFrame(() => this.draw());
+    }
+};
+
+// --- Etkileşim Yöneticisi (Interaction) ---
+
+function handleInput(x, y) {
+    if (!AppState.audioCtx) return;
+    
+    // Y ekseni -> Frekans (Pitch)
+    // Ekranın üstü yüksek frekans, altı düşük
+    const height = window.innerHeight;
+    const ratio = 1 - (y / height);
+    // Logaritmik hissiyat için
+    const minOct = 1; 
+    const maxOct = 4; 
+    const octave = AppState.octaveOffset + (minOct + ratio * maxOct);
+    const freq = 65.41 * Math.pow(2, octave); // C2 tabanlı
+    
+    updatePitch(freq);
+    
+    // X ekseni -> Filter Cutoff (Pan modu kapalıysa)
+    if (!AppState.panEnabled) {
+        const width = window.innerWidth;
+        const filterVal = 200 + (x / width) * 5000;
+        if (nodes.filter) {
+            nodes.filter.frequency.setTargetAtTime(filterVal, AppState.audioCtx.currentTime, 0.05);
+        }
+    }
+}
+
+function setupEventListeners() {
+    // Dokunmatik / Mouse
+    const startHandler = (e) => {
+        if (!AppState.isPlaying) {
+            showStatus("Başlat butonuna basmalısın!");
+            return;
+        }
+        e.preventDefault();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        handleInput(clientX, clientY);
+    };
+    
+    const moveHandler = (e) => {
+        e.preventDefault();
+        if (!AppState.isPlaying) return;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        handleInput(clientX, clientY);
+    };
+
+    elements.pad.addEventListener('mousedown', startHandler);
+    elements.pad.addEventListener('mousemove', moveHandler);
+    elements.pad.addEventListener('touchstart', startHandler, {passive: false});
+    elements.pad.addEventListener('touchmove', moveHandler, {passive: false});
+
+    // UI Kontrolleri
+    el('startBtn').onclick = async () => {
+        await initAudio();
+        await AppState.audioCtx.resume();
+        AppState.isPlaying = true;
+        Visuals.init();
+        Visuals.draw();
+        
+        el('startBtn').disabled = true;
+        el('stopBtn').disabled = false;
+        el('startRhythmBtn').disabled = false;
+        
+        elements.controls.classList.remove('expanded');
+        showStatus("Synth Aktif! Ekranı dokunarak çal.");
+    };
+
+    el('stopBtn').onclick = () => {
+        AppState.isPlaying = false;
+        if(AppState.audioCtx) AppState.audioCtx.suspend();
+        el('startBtn').disabled = false;
+        el('stopBtn').disabled = true;
+        stopRhythm();
+        showStatus("Durduruldu.");
+    };
+
+    el('toggleControls').onclick = () => {
+        elements.controls.classList.toggle('expanded');
+        el('toggleControls').textContent = elements.controls.classList.contains('expanded') ? '✕' : '⚙️';
+    };
+
+    // Hareket Sensörü (DeviceOrientation)
+    el('motionBtn').onclick = () => {
+        if (AppState.motionEnabled) {
+            AppState.motionEnabled = false;
+            window.removeEventListener('deviceorientation', handleOrientation);
+            el('motionBtn').classList.remove('active');
+            el('motionDisplay').style.display = 'none';
+        } else {
+            // iOS 13+ İzin Kontrolü
+            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission()
+                    .then(response => {
+                        if (response === 'granted') {
+                            enableMotion();
+                        } else showStatus("İzin reddedildi.");
+                    })
+                    .catch(console.error);
+            } else {
+                enableMotion();
+            }
+        }
+    };
+    
+    function enableMotion() {
+        AppState.motionEnabled = true;
+        window.addEventListener('deviceorientation', handleOrientation);
+        el('motionBtn').classList.add('active');
+        el('motionDisplay').style.display = 'block';
+        showStatus("Hareket sensörü aktif! Telefonu eğit.");
+    }
+
+    function handleOrientation(e) {
+        if (!AppState.motionEnabled || !AppState.isPlaying) return;
+        // Beta: Ön-arka eğimi (-180, 180) -> Pitch
+        // Gamma: Sağ-sol eğimi (-90, 90) -> Filter veya Pan
+        const tilt = e.beta || 0; 
+        const gamma = e.gamma || 0;
+        
+        el('motionDisplay').textContent = `Eğim: ${Math.round(tilt)}°`;
+        
+        // Hareketle frekans değişimi (kısım)
+        const baseFreq = 65.41 * Math.pow(2, AppState.octaveOffset);
+        const pitchMod = (tilt / 45); 
+        updatePitch(baseFreq * Math.pow(2, pitchMod));
+        
+        // Hareketle Pan (Pan aktifse)
+        if (AppState.panEnabled && nodes.panner) {
+            const panVal = Math.max(-1, Math.min(1, gamma / 45));
+            nodes.panner.pan.setTargetAtTime(panVal, AppState.audioCtx.currentTime, 0.1);
+            el('panDisplay').textContent = `Pan: ${Math.round(panVal*100)}%`;
+        }
+    }
+
+    // Pan Butonu
+    el('panBtn').onclick = () => {
+        AppState.panEnabled = !AppState.panEnabled;
+        el('panBtn').classList.toggle('active');
+        el('panDisplay').style.display = AppState.panEnabled ? 'block' : 'none';
+    };
+
+    // Efekt Toggle'ları
+    ['dist', 'autoWah', 'flanger', 'chorus', 'tremolo', 'delay', 'reverb'].forEach(fx => {
+        el(`toggle${fx.charAt(0).toUpperCase() + fx.slice(1)}`).onclick = (e) => {
+            AppState.effects[fx] = !AppState.effects[fx];
+            e.target.classList.toggle('active');
+            connectAudioGraph();
+            showStatus(`${fx.toUpperCase()} ${AppState.effects[fx] ? 'AÇIK' : 'KAPALI'}`);
+        };
+    });
+
+    // Ritim Kontrolleri
+    let rhythmInterval = null;
+    function startRhythm() {
+        if (rhythmInterval) return;
+        AppState.rhythmActive = true;
+        el('startRhythmBtn').disabled = true;
+        el('stopRhythmBtn').disabled = false;
+        
+        const interval = 60000 / AppState.settings.rhythm.bpm;
+        
+        rhythmInterval = setInterval(() => {
+            if (AppState.isPlaying) playKick();
+        }, interval);
+    }
+    
+    function stopRhythm() {
+        clearInterval(rhythmInterval);
+        rhythmInterval = null;
+        AppState.rhythmActive = false;
+        el('startRhythmBtn').disabled = false;
+        el('stopRhythmBtn').disabled = true;
+    }
+    
+    el('startRhythmBtn').onclick = startRhythm;
+    el('stopRhythmBtn').onclick = stopRhythm;
+    
+    // Kick Solo
+    el('kickSoloBtn').onclick = () => {
+        AppState.kickSolo = !AppState.kickSolo;
+        el('kickSoloBtn').classList.toggle('active');
+        connectAudioGraph();
+        showStatus(AppState.kickSolo ? "SOLO MODU: Sadece Kick!" : "Solo Modu Kapalı.");
+    };
+
+    // Animasyon Seçimi
+    el('animationSelect').onchange = (e) => {
+        AppState.settings.anim.type = e.target.value;
+        Visuals.initParticles(); // Reset
+    };
+
+    // Input Ranges (Değer Güncelleme)
+    const bindRange = (id, obj, key, scale = 1, suffix = '') => {
+        const input = el(id);
+        input.oninput = (e) => {
+            obj[key] = parseFloat(e.target.value) / scale;
+            if(el(id+'Value')) el(id+'Value').textContent = e.target.value + suffix;
+            
+            // Özel durumlar
+            if (id === 'masterVolume' && nodes.master) 
+                nodes.master.gain.setTargetAtTime(obj[key], AppState.audioCtx.currentTime, 0.05);
+            if (id === 'synthVolume' && nodes.synthGain) 
+                nodes.synthGain.gain.setTargetAtTime(obj[key], AppState.audioCtx.currentTime, 0.05);
+            if (id === 'kickVolume' && nodes.kickGain) 
+                nodes.kickGain.gain.setTargetAtTime(obj[key], AppState.audioCtx.currentTime, 0.05);
+            if (id === 'filterFreq' && nodes.filter) 
+                nodes.filter.frequency.setTargetAtTime(obj[key], AppState.audioCtx.currentTime, 0.05);
+            if (id === 'filterRes' && nodes.filter) 
+                nodes.filter.Q.setTargetAtTime(obj[key], AppState.audioCtx.currentTime, 0.05);
+            if (id === 'rhythmSpeed' && AppState.rhythmActive) {
+                stopRhythm(); startRhythm();
+            }
+        };
+    };
+
+    bindRange('masterVolume', AppState.settings.volume, 'master', 100);
+    bindRange('synthVolume', AppState.settings.volume, 'synth', 100);
+    bindRange('kickVolume', AppState.settings.volume, 'kick', 100);
+    bindRange('filterFreq', AppState.settings, 'filterFreq', 1);
+    bindRange('filterRes', AppState.settings, 'filterRes', 1);
+    bindRange('rhythmSpeed', AppState.settings.rhythm, 'bpm', 1);
+    bindRange('rhythmIntensity', AppState.settings.rhythm, 'intensity', 100);
+    bindRange('animSpeed', AppState.settings.anim, 'speed', 10);
+    bindRange('animIntensity', AppState.settings.anim, 'intensity', 10);
+    
+    el('kickPunch').oninput = (e) => { 
+        AppState.settings.kick.punch = parseInt(e.target.value);
+        el('kickPunchValue').textContent = e.target.value;
+    };
+    el('kickDistortion').oninput = (e) => {
+        AppState.settings.kick.drive = parseInt(e.target.value);
+        el('kickDistortionValue').textContent = e.target.value;
+    };
+    
+    // Diğer UI
+    el('waveSelect').onchange = (e) => {
+        AppState.settings.waveType = e.target.value;
+        // Osilatörleri yeniden oluşturmak gerekebilir ama basitçe tipi değiştirelim
+        AppState.oscillators.forEach(o => o.type = AppState.settings.waveType);
+        showStatus("Dalga Formu: " + e.target.value);
+    };
+    
+    el('octUp').onclick = () => { AppState.octaveOffset++; showStatus("Oktav: " + AppState.octaveOffset); };
+    el('octDown').onclick = () => { AppState.octaveOffset--; showStatus("Oktav: " + AppState.octaveOffset); };
+
+    // Candy Rain Easter Egg
+    el('credit').onclick = (e) => {
+        e.preventDefault();
+        showStatus("Şeker yağmuru! 🍬");
+        const candies = ['🍬', '🍭', '🍫', '🍩'];
+        for(let i=0; i<30; i++) {
+            const div = document.createElement('div');
+            div.className = 'candy';
+            div.textContent = candies[Math.floor(Math.random()*candies.length)];
+            div.style.left = Math.random() * 100 + 'vw';
+            div.style.animationDuration = (2 + Math.random() * 3) + 's';
+            div.style.fontSize = (20 + Math.random() * 20) + 'px';
+            document.body.appendChild(div);
+            setTimeout(() => div.remove(), 5000);
+        }
+    };
+
+    // Modal İzinleri
+    el('permissionAllow').onclick = () => {
+        elements.modal.style.display = 'none';
+        enableMotion();
+    };
+    el('permissionDeny').onclick = () => {
+        elements.modal.style.display = 'none';
+    };
+    
+    // Klavye Desteği
+    document.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') {
+            if(AppState.rhythmActive) stopRhythm();
+            else if(AppState.isPlaying) startRhythm();
+        }
+    });
+}
+
+// Başlangıç
+setupEventListeners();
+// Not cetvelini oluştur
+const ruler = el('noteRuler');
+NOTE_NAMES.reverse().forEach(n => {
+    const d = document.createElement('div');
+    d.className = 'ruler-note';
+    d.textContent = n;
+    ruler.appendChild(d);
+});
+
+</script>
+</body>
+</html>
