@@ -8,44 +8,44 @@
 <meta name="apple-mobile-web-app-title" content="Synth">
 <title>Synth - Eğlence Fabrikası</title>
 <style>
-:root{--r:255;--g:100;--b:100;--bg-color:rgba(var(--r),var(--g),var(--b),0.3);--control-bg:rgba(var(--r),var(--g),var(--b),0.4);--text-color:rgba(255,255,255,0.95);--border-color:rgba(var(--r),var(--g),var(--b),0.8);--safe-area-inset-top:env(safe-area-inset-top,0px);--safe-area-inset-bottom:env(safe-area-inset-bottom,0px);}
+:root{--r:255;--g:100;--b:100;--bg-color:rgba(var(--r),var(--g),var(--b),0.3);--control-bg:rgba(var(--r),var(--g),var(--b),0.4);--text-color:rgba(255,255,255,0.95);--border-color:rgba(var(--r),var(--g),var(--b),0.8);--safe-area-inset-top:env(safe-area-inset-top,0px);--safe-area-inset-bottom:env(safe-area-inset-bottom,0px);--safe-area-inset-left:env(safe-area-inset-left,0px);--safe-area-inset-right:env(safe-area-inset-right,0px);}
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;background-color:#111;color:var(--text-color);font-family:-apple-system,sans-serif;font-weight:400;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;touch-action:none;overscroll-behavior:none;overflow:hidden;}
 body{background-color:var(--bg-color);transition:background-color 0.1s ease;}
 #app-container{height:100%;display:flex;flex-direction:column;}
-#pad{width:100%;height:100vh;position:relative;display:flex;justify-content:center;align-items:center;background:radial-gradient(circle at center,var(--control-bg),rgba(0,0,0,0.4));cursor:crosshair;}
+#pad{width:100%;height:100%;position:relative;display:flex;justify-content:center;align-items:center;background:radial-gradient(circle at center,var(--control-bg),rgba(0,0,0,0.4));cursor:crosshair;padding-top:var(--safe-area-inset-top);padding-bottom:var(--safe-area-inset-bottom);}
 #noteDisplay,#motionDisplay,#wahDisplay,#panDisplay{position:absolute;background-color:var(--control-bg);color:var(--text-color);pointer-events:none;z-index:10;border:2px solid var(--border-color);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);padding:8px 16px;border-radius:20px;font-size:14px;font-weight:500;transition:all 0.1s ease;}
-#noteDisplay{top:max(20px,var(--safe-area-inset-top,20px));left:50%;transform:translateX(-50%);font-size:24px;text-shadow:0 0 20px var(--border-color);}
-#motionDisplay,#wahDisplay,#panDisplay{bottom:20px;left:50%;transform:translateX(-50%);display:none;}
-#wahDisplay{bottom:60px;}#panDisplay{bottom:100px;}#motionDisplay{bottom:140px;}
-#noteRuler{position:absolute;right:0;top:0;bottom:0;width:60px;background:var(--control-bg);border-left:2px solid var(--border-color);display:flex;flex-direction:column;justify-content:space-between;padding:10px 0;pointer-events:none;z-index:5;}
-.ruler-note{display:flex;align-items:center;justify-content:center;flex:1;font-size:11px;color:var(--text-color);border-bottom:1px solid var(--border-color);}
-#controls{position:fixed;bottom:0;left:0;right:0;max-height:70vh;background:var(--control-bg);-webkit-backdrop-filter:blur(30px);backdrop-filter:blur(30px);border-top:2px solid var(--border-color);transform:translateY(calc(100% - 50px));transition:transform 0.3s ease;overflow-y:auto;padding:15px;display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;z-index:100;-ms-overflow-style:none;scrollbar-width:none;-webkit-overflow-scrolling:touch;touch-action:pan-y;}
+#noteDisplay{top:max(20px,var(--safe-area-inset-top,20px));left:50%;transform:translateX(-50%);font-size:clamp(18px,4vw,24px);text-shadow:0 0 20px var(--border-color);}
+#motionDisplay,#wahDisplay,#panDisplay{bottom:max(20px,var(--safe-area-inset-bottom,20px));left:50%;transform:translateX(-50%);display:none;}
+#wahDisplay{bottom:calc(max(20px,var(--safe-area-inset-bottom,20px)) + 40px);}#panDisplay{bottom:calc(max(20px,var(--safe-area-inset-bottom,20px)) + 80px);}#motionDisplay{bottom:calc(max(20px,var(--safe-area-inset-bottom,20px)) + 120px);}
+#noteRuler{position:absolute;right:var(--safe-area-inset-right,0);top:0;bottom:0;width:60px;background:var(--control-bg);border-left:2px solid var(--border-color);display:flex;flex-direction:column;justify-content:space-between;padding:10px 0;pointer-events:none;z-index:5;}
+.ruler-note{display:flex;align-items:center;justify-content:center;flex:1;font-size:clamp(10px,2vw,11px);color:var(--text-color);border-bottom:1px solid var(--border-color);}
+#controls{position:fixed;bottom:0;left:0;right:0;max-height:70vh;background:var(--control-bg);-webkit-backdrop-filter:blur(30px);backdrop-filter:blur(30px);border-top:2px solid var(--border-color);transform:translateY(calc(100% - 50px));transition:transform 0.3s ease;overflow-y:auto;padding:15px;display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;z-index:100;-ms-overflow-style:none;scrollbar-width:none;-webkit-overflow-scrolling:touch;touch-action:pan-y;padding-bottom:calc(15px + var(--safe-area-inset-bottom,0px));}
 #controls::-webkit-scrollbar{display:none;}
 #controls.expanded{transform:translateY(0);}
-#toggleControls{position:fixed;bottom:10px;right:20px;width:50px;height:50px;border-radius:50%;background:var(--control-bg);border:2px solid var(--border-color);color:var(--text-color);font-size:20px;font-weight:bold;cursor:pointer;z-index:1000;display:flex;align-items:center;justify-content:center;box-shadow:0 0 25px var(--border-color);transition:all 0.1s ease;}
-button,select,input[type=range],label{font-family:inherit;font-size:12px;font-weight:500;border-radius:8px;border:2px solid var(--border-color);background:var(--control-bg);color:var(--text-color);-webkit-appearance:none;appearance:none;transition:all 0.1s ease;outline:none;}
+#toggleControls{position:fixed;bottom:calc(10px + var(--safe-area-inset-bottom,0px));right:calc(20px + var(--safe-area-inset-right,0px));width:50px;height:50px;border-radius:50%;background:var(--control-bg);border:2px solid var(--border-color);color:var(--text-color);font-size:20px;font-weight:bold;cursor:pointer;z-index:1000;display:flex;align-items:center;justify-content:center;box-shadow:0 0 25px var(--border-color);transition:all 0.1s ease;}
+button,select,input[type=range],label{font-family:inherit;font-size:clamp(11px,2vw,12px);font-weight:500;border-radius:8px;border:2px solid var(--border-color);background:var(--control-bg);color:var(--text-color);-webkit-appearance:none;appearance:none;transition:all 0.1s ease;outline:none;}
 button{padding:10px 12px;cursor:pointer;min-height:40px;}
 button.active{background:var(--border-color);color:#111;font-weight:600;box-shadow:0 0 15px var(--border-color);}
 .control-group{display:flex;flex-direction:column;align-items:center;}
-label{font-size:10px;margin-bottom:3px;text-align:center;}
+label{font-size:clamp(9px,2vw,10px);margin-bottom:3px;text-align:center;}
 input[type=range]{width:100%;height:6px;background:var(--border-color);border:none;margin:5px 0;}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;background:var(--text-color);cursor:pointer;border-radius:50%;box-shadow:0 0 15px var(--border-color);}
 select{padding:8px;cursor:pointer;min-height:40px;width:100%;}
-#statusMessage{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--control-bg);color:var(--text-color);padding:8px 16px;border-radius:8px;font-size:12px;z-index:100;opacity:0;transition:opacity 0.3s;pointer-events:none;-webkit-backdrop-filter:blur(15px);backdrop-filter:blur(15px);border:2px solid var(--border-color);}
+#statusMessage{position:fixed;bottom:calc(80px + var(--safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--control-bg);color:var(--text-color);padding:8px 16px;border-radius:8px;font-size:12px;z-index:100;opacity:0;transition:opacity 0.3s;pointer-events:none;-webkit-backdrop-filter:blur(15px);backdrop-filter:blur(15px);border:2px solid var(--border-color);}
 #statusMessage.show{opacity:1;}
 .effect-group{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:8px 0;padding:8px;background:var(--control-bg);border-radius:8px;border:2px solid var(--border-color);}
-.effect-group-title{grid-column:1/-1;text-align:center;font-size:11px;font-weight:600;color:var(--text-color);margin-bottom:3px;}
+.effect-group-title{grid-column:1/-1;text-align:center;font-size:clamp(10px,2vw,11px);font-weight:600;color:var(--text-color);margin-bottom:3px;}
 .rhythm-panel,.kick-panel,.animation-panel,.volume-panel{grid-column:1/-1;display:flex;flex-direction:column;gap:8px;margin:8px 0;padding:12px;background:var(--control-bg);border-radius:8px;border:2px solid var(--border-color);}
-.rhythm-title,.kick-title,.animation-title,.volume-title{text-align:center;font-size:11px;font-weight:600;color:var(--text-color);margin-bottom:5px;}
+.rhythm-title,.kick-title,.animation-title,.volume-title{text-align:center;font-size:clamp(10px,2vw,11px);font-weight:600;color:var(--text-color);margin-bottom:5px;}
 .rhythm-buttons,.kick-controls,.animation-controls,.volume-controls{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
 .modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:var(--control-bg);z-index:1000;justify-content:center;align-items:center;}
 .modal-content{background:var(--control-bg);padding:20px;border-radius:15px;max-width:80%;text-align:center;-webkit-backdrop-filter:blur(25px);backdrop-filter:blur(25px);border:2px solid var(--border-color);}
 .modal-buttons{display:flex;gap:8px;margin-top:15px;}
 .modal-buttons button{flex:1;}
 #waveAnimation{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;}
-.value-display{font-size:10px;margin-top:2px;color:var(--text-color);}
-#credit{color:var(--text-color);font-size:14px;text-decoration:none;font-family:'Courier New',monospace;background:var(--control-bg);padding:6px 12px;border-radius:12px;border:1px solid var(--border-color);pointer-events:auto;transition:all 0.2s ease;grid-column:1/-1;text-align:center;margin-top:10px;}
+.value-display{font-size:clamp(9px,2vw,10px);margin-top:2px;color:var(--text-color);}
+#credit{color:var(--text-color);font-size:clamp(12px,2vw,14px);text-decoration:none;font-family:'Courier New',monospace;background:var(--control-bg);padding:6px 12px;border-radius:12px;border:1px solid var(--border-color);pointer-events:auto;transition:all 0.2s ease;grid-column:1/-1;text-align:center;margin-top:10px;}
 #credit:active{background:var(--border-color);transform:scale(0.95);}
 .candy{position:fixed;pointer-events:none;user-select:none;z-index:1000;font-size:20px;opacity:0.8;}
 </style>
@@ -152,41 +152,12 @@ function updateButtonStates(){if(!elements.startBtn)return;elements.startBtn.dis
 function playKick(beat){if(!isAudioContextValid())return;const pattern=patternMap[AppState.kickSettings.pattern],intensity=AppState.rhythmIntensity/100;if(!pattern||!pattern[beat%pattern.length]||Math.random()>intensity)return;const now=AppState.audioCtx.currentTime,punch=AppState.kickSettings.punch/100,bass=AppState.kickSettings.bass/100,distortion=AppState.kickSettings.distortion/100,sweep=AppState.kickSettings.sweep/100,baseFreq=50+40*punch*(1-bass*0.3),endFreq=25+20*(1-sweep)*(1-bass*0.5),sweepTime=0.08+0.08*sweep+bass*0.12,clickFreq=1200+800*punch,clickTime=0.008,bassBoost=0.5+bass*0.8;try{kickOsc.frequency.setValueAtTime(baseFreq,now);kickOsc.frequency.exponentialRampToValueAtTime(endFreq,now+sweepTime);kickGain.gain.setValueAtTime(1.5*bassBoost,now);kickGain.gain.exponentialRampToValueAtTime(0.001,now+sweepTime+0.15+bass*0.1);kickClickOsc.frequency.setValueAtTime(clickFreq,now);kickClickGain.gain.setValueAtTime(punch*1.2,now);kickClickGain.gain.exponentialRampToValueAtTime(0.001,now+clickTime);const filterFreq=800+400*punch-bass*600,filterQ=1+bass*2;kickFilter.frequency.setValueAtTime(filterFreq,now);kickFilter.frequency.exponentialRampToValueAtTime(60+bass*40,now+sweepTime);kickFilter.Q.setValueAtTime(filterQ,now);const distortionAmount=15+distortion*20;updateKickDistortionCurve(distortionAmount);kickCompressor.threshold.value=-30-punch*10-bass*5;}catch(error){console.error('Kick çalma hatası:',error);}}
 function cleanupOscillators(){if(AppState.oscillators.length>0){AppState.oscillators.forEach(osc=>{try{if(osc.stop)osc.stop();if(osc.disconnect)osc.disconnect();if(osc.modulator){try{osc.modulator.stop();osc.modulator.disconnect();}catch(e){console.log('Modülatör temizleme hatası:',e);}}if(osc.pulseWidth){try{osc.pulseWidth.disconnect();}catch(e){console.log('Pulse genişlik temizleme hatası:',e);}}if(osc.modGain){try{osc.modGain.disconnect();}catch(e){console.log('Mod kazancı temizleme hatası:',e);}}}catch(e){console.log('Osilatör temizleme hatası:',e);}});AppState.oscillators=[];}}
 function cleanupAudioNodes(){
-    // LFO'ları durdur
-    if (audioNodes.autoWahLFO && audioNodes.autoWahLFO.stop) {
-        try { audioNodes.autoWahLFO.stop(); } catch(e) {}
-    }
-    if (audioNodes.flangerLFO && audioNodes.flangerLFO.stop) {
-        try { audioNodes.flangerLFO.stop(); } catch(e) {}
-    }
-    if (audioNodes.chorusLFO && audioNodes.chorusLFO.stop) {
-        try { audioNodes.chorusLFO.stop(); } catch(e) {}
-    }
-    if (audioNodes.tremoloLFO && audioNodes.tremoloLFO.stop) {
-        try { audioNodes.tremoloLFO.stop(); } catch(e) {}
-    }
-  
-    // Tüm ses düğümlerinin bağlantısını kes
-    Object.values(audioNodes).forEach(node=>{
-        if(node&&typeof node.disconnect==='function'){
-            try{node.disconnect();}catch(e){console.log('Ses düğümü bağlantı kesme hatası:',e);}
-        }
-    });
-    audioNodes={};
-    lfoStarted=false;
-  
-    // Kick düğümlerini temizle
-    const kickNodes=[kickOsc,kickGain,kickClickOsc,kickClickGain,kickFilter,kickDistortion,kickCompressor];
-    kickNodes.forEach(node=>{
-        if(node){
-            try{
-                node.disconnect();
-                if(node.stop){node.stop();}
-            }catch(e){console.log('Kick düğümü temizleme hatası:',e);}
-        }
-    });
-    kickOsc=null;kickGain=null;kickClickOsc=null;kickClickGain=null;kickFilter=null;kickDistortion=null;kickCompressor=null;
-}
+    if(audioNodes.autoWahLFO&&audioNodes.autoWahLFO.stop){try{audioNodes.autoWahLFO.stop();}catch(e){}}
+    if(audioNodes.flangerLFO&&audioNodes.flangerLFO.stop){try{audioNodes.flangerLFO.stop();}catch(e){}}
+    if(audioNodes.chorusLFO&&audioNodes.chorusLFO.stop){try{audioNodes.chorusLFO.stop();}catch(e){}}
+    if(audioNodes.tremoloLFO&&audioNodes.tremoloLFO.stop){try{audioNodes.tremoloLFO.stop();}catch(e){}}
+    Object.values(audioNodes).forEach(node=>{if(node&&typeof node.disconnect==='function'){try{node.disconnect();}catch(e){console.log('Ses düğümü bağlantı kesme hatası:',e);}}});audioNodes={};lfoStarted=false;
+    const kickNodes=[kickOsc,kickGain,kickClickOsc,kickClickGain,kickFilter,kickDistortion,kickCompressor];kickNodes.forEach(node=>{if(node){try{node.disconnect();if(node.stop){node.stop();}}catch(e){console.log('Kick düğümü temizleme hatası:',e);}}});kickOsc=null;kickGain=null;kickClickOsc=null;kickClickGain=null;kickFilter=null;kickDistortion=null;kickCompressor=null;}
 function createWaveShaper(amount){try{const ws=AppState.audioCtx.createWaveShaper(),n=4096,curve=new Float32Array(n);for(let i=0;i<n;i++){const x=(i-n/2)/(n/2);curve[i]=(3+amount)*Math.tanh(x*5)/(Math.PI+amount*Math.abs(x));}ws.curve=curve;return ws;}catch(error){console.error('WaveShaper oluşturma hatası:',error);return null;}}
 function createSoftWaveShaper(amount){try{const ws=AppState.audioCtx.createWaveShaper(),n=4096,curve=new Float32Array(n);for(let i=0;i<n;i++){const x=(i-n/2)/(n/2);curve[i]=Math.tanh(x*(3+amount*0.1))*0.8;}ws.curve=curve;ws.oversample='4x';return ws;}catch(error){console.error('Yumuşak WaveShaper oluşturma hatası:',error);return null;}}
 function updateKickDistortionCurve(amount){if(!kickDistortion)return;try{const n=4096,curve=new Float32Array(n);for(let i=0;i<n;i++){const x=(i-n/2)/(n/2);curve[i]=Math.tanh(x*(3+amount*0.1))*0.8;}kickDistortion.curve=curve;}catch(error){console.error('Kick distorsiyon güncelleme hatası:',error);}}
@@ -200,7 +171,7 @@ function updateAllVolumes(){if(!AppState.audioCtx)return;const now=AppState.audi
 function createNoteRuler(){if(!elements.noteRuler)return;const notes=['C6','B5','A#5','A5','G#5','G5','F#5','F5','E5','D#5','D5','C#5','C5','B4','A#4','A4','G#4','G4','F#4','F4','E4','D#4','D4','C#4','C4'];elements.noteRuler.innerHTML='';notes.forEach(note=>{const div=document.createElement('div');div.className='ruler-note';div.textContent=note;elements.noteRuler.appendChild(div);});}
 function freqToNote(freq){const A4=440,semitonesFromA4=12*Math.log2(freq/A4),noteIndex=Math.round(semitonesFromA4+9)%12,octave=Math.floor((semitonesFromA4+9)/12),noteName=noteNames[(noteIndex+12)%12];return{name:noteName,octave:octave,fullName:`${noteName}${octave}`};}
 function updateThemeColor(color){try{document.documentElement.style.setProperty('--r',color[0]);document.documentElement.style.setProperty('--g',color[1]);document.documentElement.style.setProperty('--b',color[2]);const r=color[0]/255,g=color[1]/255,b=color[2]/255,max=Math.max(r,g,b),min=Math.min(r,g,b);let h,s,l=(max+min)/2;if(max===min){h=s=0;}else{const d=max-min;s=l>0.5?d/(2-max-min):d/(max+min);switch(max){case r:h=((g-b)/d+(g<b?6:0))/6;break;case g:h=((b-r)/d+2)/6;break;case b:h=((r-g)/d+4)/6;break;}}animationHue=Math.round(h*360);}catch(error){console.error('Tema rengi güncelleme hatası:',error);}}
-function noteFromPad(y){const padHeight=window.innerHeight,ratio=1-(y/padHeight),baseFreq=65.41*Math.pow(2,AppState.octaveOffset);return baseFreq*Math.pow(2,(ratio*24)/12);}
+function noteFromPad(y){const padHeight=elements.pad.clientHeight,ratio=1-(y/padHeight),baseFreq=65.41*Math.pow(2,AppState.octaveOffset);return baseFreq*Math.pow(2,(ratio*24)/12);}
 function applyPitch(){if(!safeAudioOperation(()=>{const freq=AppState.baseFreq,noteInfo=freqToNote(freq);AppState.oscillators.forEach((osc,i)=>{if(osc&&osc.frequency){osc.frequency.setTargetAtTime(freq,AppState.audioCtx.currentTime,0.01);}});if(elements.noteDisplay){elements.noteDisplay.textContent=noteInfo.fullName;}const colorIndex=noteNames.indexOf(noteInfo.name);if(colorIndex!==-1)updateThemeColor(noteColors[colorIndex]);}))return;}
 function handleTouchStart(e){e.preventDefault();if(!isAudioContextValid()){showStatus('Lütfen önce synth\'i başlat! Yoksa çalamayız!');return;}const now=performance.now();if(now-lastTouchTime<8)return;lastTouchTime=now;Array.from(e.touches).forEach(touch=>{activeTouches.set(touch.identifier,{x:touch.clientX,y:touch.clientY});});if(e.touches[0]){handleTouchPosition(e.touches[0].clientX,e.touches[0].clientY);}}
 function handleTouchMove(e){e.preventDefault();if(!isAudioContextValid())return;const now=performance.now();if(now-lastTouchTime<8)return;lastTouchTime=now;Array.from(e.touches).forEach(touch=>{activeTouches.set(touch.identifier,{x:touch.clientX,y:touch.clientY});});if(e.touches.length===1&&e.touches[0]){handleTouchPosition(e.touches[0].clientX,e.touches[0].clientY);}}
@@ -211,63 +182,14 @@ function handleMouseMove(e){if(e.buttons===1){handleTouchPosition(e.clientX,e.cl
 function updatePan(position){if(!audioNodes.panner)return;safeAudioOperation(()=>{audioNodes.panner.pan.setTargetAtTime(position,AppState.audioCtx.currentTime,0.01);if(elements.panDisplay){const panPercent=Math.round(position*100);elements.panDisplay.textContent=`Pan:${panPercent}%`;}});}
 async function startSynth(){try{if(AppState.audioCtx){if(AppState.audioCtx.state !== 'running'){try{await AppState.audioCtx.close();}catch(e){}AppState.audioCtx = null;}else{showStatus('Synth sıfırlanıyor, biraz sabır...');cleanupOscillators();createAudioNodes();showStatus('Synth sıfırlandı, temiz başlangıç!');return;}}AppState.audioCtx=new(window.AudioContext||window.webkitAudioContext)();await AppState.audioCtx.resume();createAudioNodes();AppState.isPlaying=true;updateButtonStates();startWaveAnimation();showStatus('Synth başladı! Efektlerle eğlenmeye başla! 🎹');}catch(e){console.error('Başlatma hatası:',e);showStatus('Ses başlatılamadı: '+e.message+' - Tekrar deneyelim!');}}
 async function stopSynth(){
-    try {
-        cleanupOscillators();
-        stopRhythm();
-        stopWaveAnimation();
-      
-        if (AppState.audioCtx && AppState.audioCtx.state !== 'closed') {
-            // Master gain'ı sıfırla (fade-out efekti için)
-            if (AppState.masterGain) {
-                const now = AppState.audioCtx.currentTime;
-                AppState.masterGain.gain.setTargetAtTime(0.001, now, 0.02);
-              
-                // Kısa bir bekleme süresi ekle (fade-out için)
-                await new Promise(resolve => setTimeout(resolve, 50));
-            }
-          
-            // Tüm ses düğümlerinin bağlantısını kes
-            cleanupAudioNodes();
-          
-            // Audio context'i kapat
-            await AppState.audioCtx.close();
-            AppState.audioCtx = null;
-        }
-      
-        AppState.masterGain = null;
-        AppState.synthGain = null;
-        AppState.kickGain = null;
-        AppState.effectsGain = null;
-        AppState.isPlaying = false;
-        updateButtonStates();
-        showStatus('Synth durdu, sessizliğe hoş geldin! 🤫');
-      
-    } catch (e) {
-        console.error('Durdurma hatası:', e);
-      
-        // Hata durumunda daha agresif temizlik
-        if (AppState.audioCtx) {
-            try {
-                cleanupOscillators();
-                cleanupAudioNodes();
-                await AppState.audioCtx.close();
-            } catch (err) {
-                console.error('Temizleme hatası:', err);
-            }
-            AppState.audioCtx = null;
-        }
-      
-        // State'i sıfırla
-        AppState.masterGain = null;
-        AppState.synthGain = null;
-        AppState.kickGain = null;
-        AppState.effectsGain = null;
-        AppState.isPlaying = false;
-      
-        updateButtonStates();
-        showStatus('Synth temizlikle durdu, her şey tertemiz! 🧹');
-    }
-}
+    try{cleanupOscillators();stopRhythm();stopWaveAnimation();
+    if(AppState.audioCtx&&AppState.audioCtx.state !== 'closed'){
+        if(AppState.masterGain){const now=AppState.audioCtx.currentTime;AppState.masterGain.gain.setTargetAtTime(0.001,now,0.02);await new Promise(resolve=>setTimeout(resolve,50));}
+        cleanupAudioNodes();await AppState.audioCtx.close();AppState.audioCtx=null;}
+    AppState.masterGain=null;AppState.synthGain=null;AppState.kickGain=null;AppState.effectsGain=null;AppState.isPlaying=false;updateButtonStates();showStatus('Synth durdu, sessizliğe hoş geldin! 🤫');
+    }catch(e){console.error('Durdurma hatası:',e);
+    if(AppState.audioCtx){try{cleanupOscillators();cleanupAudioNodes();await AppState.audioCtx.close();}catch(err){console.error('Temizleme hatası:',err);}AppState.audioCtx=null;}
+    AppState.masterGain=null;AppState.synthGain=null;AppState.kickGain=null;AppState.effectsGain=null;AppState.isPlaying=false;updateButtonStates();showStatus('Synth temizlikle durdu, her şey tertemiz! 🧹');}}
 function toggleControls(){if(!elements.controls||!elements.toggleControls)return;elements.controls.classList.toggle('expanded');elements.toggleControls.textContent=elements.controls.classList.contains('expanded')?'✕':'⚙️';}
 function requestMotionPermission(){if(typeof DeviceOrientationEvent.requestPermission==='function'){if(elements.permissionModal){elements.permissionModal.style.display='flex';}}else{startMotionControl();}}
 function startMotionControl(){window.addEventListener("deviceorientation",handleOrientation);AppState.motionEnabled=true;if(elements.motionDisplay){elements.motionDisplay.style.display='block';}updateButtonStates();showStatus('Hareket aktif! Cihazı eğerek perdeyi kontrol et, dikkatli ol! 📱');}
@@ -288,7 +210,7 @@ function updateMasterVolume(value){AppState.volumeSettings.master=parseInt(value
 function updateSynthVolume(value){AppState.volumeSettings.synth=parseInt(value);updateAllVolumes();}
 function updateKickVolume(value){AppState.volumeSettings.kick=parseInt(value);updateAllVolumes();}
 function updateEffectsVolume(value){AppState.volumeSettings.effects=parseInt(value);updateAllVolumes();}
-function startWaveAnimation(){const canvas=elements.waveCanvas;if(!canvas)return;const ctx=canvas.getContext('2d');function resize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;if(animations[AppState.currentAnimation].init){animations[AppState.currentAnimation].init();}}resize();if(resizeHandler){window.removeEventListener('resize',resizeHandler);}resizeHandler=resize;window.addEventListener('resize',resize);function animate(time){if(!AppState.isPlaying||!animationFrameId)return;animationFrameId=requestAnimationFrame(animate);const timeSec=time*0.001;try{animations[AppState.currentAnimation].draw(ctx,timeSec);}catch(e){console.error('Animasyon hatası:',e);}}stopWaveAnimation();animationFrameId=requestAnimationFrame(animate);}
+function startWaveAnimation(){const canvas=elements.waveCanvas;if(!canvas)return;const ctx=canvas.getContext('2d');function resize(){const pad=elements.pad;if(pad){canvas.width=pad.clientWidth;canvas.height=pad.clientHeight;}else{canvas.width=window.innerWidth;canvas.height=window.innerHeight;}if(animations[AppState.currentAnimation].init){animations[AppState.currentAnimation].init();}}resize();if(resizeHandler){window.removeEventListener('resize',resizeHandler);}resizeHandler=resize;window.addEventListener('resize',resize);function animate(time){if(!AppState.isPlaying||!animationFrameId)return;animationFrameId=requestAnimationFrame(animate);const timeSec=time*0.001;try{animations[AppState.currentAnimation].draw(ctx,timeSec);}catch(e){console.error('Animasyon hatası:',e);}}stopWaveAnimation();animationFrameId=requestAnimationFrame(animate);}
 function stopWaveAnimation(){if(animationFrameId){cancelAnimationFrame(animationFrameId);animationFrameId=null;}if(resizeHandler){window.removeEventListener('resize',resizeHandler);resizeHandler=null;}const ctx=elements.waveCanvas?.getContext('2d');if(ctx){ctx.clearRect(0,0,elements.waveCanvas.width,elements.waveCanvas.height);}}
 function setAnimation(animationName){AppState.currentAnimation=animationName;if(AppState.isPlaying){stopWaveAnimation();startWaveAnimation();}showStatus(`Animasyon: ${animationName==='none'?'Yok - sadece müzik, gözler dinlensin! 👀':animationName+' - gözlerin bayram etsin! 🎇'}`);}
 function updateAnimationSpeed(value){AppState.animationSpeed=parseFloat(value);const display=document.getElementById('animSpeedValue');if(display)display.textContent=value;}
