@@ -8,1264 +8,298 @@
 <meta name="apple-mobile-web-app-title" content="Synth">
 <title>Synth - Eğlence Fabrikası</title>
 <style>
-    :root {
-        --primary-hue: 0;
-        --primary-color: hsla(var(--primary-hue), 100%, 60%, 1);
-        --bg-color: rgba(20, 20, 20, 0.85);
-        --control-bg: rgba(30, 30, 30, 0.6);
-        --text-color: #ffffff;
-        --border-color: rgba(255, 255, 255, 0.2);
-        --accent-glow: 0 0 20px var(--primary-color);
-        --safe-area-top: env(safe-area-inset-top, 0px);
-        --safe-area-bottom: env(safe-area-inset-bottom, 0px);
-    }
-
-    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    
-    html, body {
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        background-color: #000;
-        color: var(--text-color);
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        overflow: hidden;
-        touch-action: none;
-        user-select: none;
-    }
-
-    /* Ana Düzen */
-    #app-container {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        position: relative;
-    }
-
-    /* Oynama Alanı (Pad) */
-    #pad {
-        flex: 1;
-        position: relative;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        background: radial-gradient(circle at center, rgba(40,40,40,0.5), #000);
-        cursor: crosshair;
-        overflow: hidden;
-    }
-
-    /* Görselleştirme Canvas'ı */
-    #waveAnimation {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 1;
-        pointer-events: none;
-    }
-
-    /* Bilgi Ekranları */
-    .hud-element {
-        position: absolute;
-        background: rgba(0, 0, 0, 0.5);
-        backdrop-filter: blur(10px);
-        border: 1px solid var(--border-color);
-        color: var(--primary-color);
-        padding: 5px 12px;
-        border-radius: 15px;
-        font-size: 14px;
-        font-weight: 600;
-        z-index: 10;
-        pointer-events: none;
-        transition: all 0.1s ease;
-    }
-
-    #noteDisplay {
-        top: max(20px, var(--safe-area-top));
-        left: 50%;
-        transform: translateX(-50%);
-        font-size: 28px;
-        text-shadow: 0 0 10px var(--primary-color);
-        border: 2px solid var(--primary-color);
-    }
-
-    #motionDisplay, #wahDisplay, #panDisplay {
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        display: none;
-    }
-
-    /* Kontrol Paneli (Alt Panel) */
-    #controls {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        max-height: 85vh;
-        background: var(--control-bg);
-        backdrop-filter: blur(25px);
-        -webkit-backdrop-filter: blur(25px);
-        border-top: 1px solid var(--border-color);
-        transform: translateY(calc(100% - 60px));
-        transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-        overflow-y: auto;
-        z-index: 100;
-        padding: 15px;
-        padding-bottom: calc(60px + var(--safe-area-bottom));
-        /* Grid Layout */
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: 15px;
-        scrollbar-width: none; /* Firefox */
-    }
-    
-    #controls::-webkit-scrollbar { display: none; }
-    #controls.expanded { transform: translateY(0); }
-
-    /* UI Bileşenleri */
-    button, select, input[type=range] {
-        font-family: inherit;
-        background: rgba(255,255,255,0.05);
-        border: 1px solid var(--border-color);
-        color: var(--text-color);
-        border-radius: 8px;
-        padding: 10px;
-        outline: none;
-        transition: all 0.2s;
-    }
-
-    button {
-        cursor: pointer;
-        font-weight: 600;
-        font-size: 13px;
-    }
-
-    button:active { transform: scale(0.96); }
-    button.active {
-        background: var(--primary-color);
-        color: #000;
-        box-shadow: 0 0 15px var(--primary-color);
-        border-color: transparent;
-    }
-    
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    select { appearance: none; cursor: pointer; width: 100%; }
-
-    label { font-size: 11px; color: #aaa; display: block; margin-bottom: 4px; }
-
-    input[type=range] {
-        -webkit-appearance: none;
-        width: 100%;
-        height: 4px;
-        background: rgba(255,255,255,0.2);
-        border-radius: 2px;
-        margin: 8px 0;
-        border: none;
-    }
-
-    input[type=range]::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        width: 18px;
-        height: 18px;
-        background: var(--text-color);
-        border-radius: 50%;
-        cursor: pointer;
-        box-shadow: 0 0 10px rgba(0,0,0,0.5);
-    }
-
-    /* Gruplama Kartları */
-    .panel-section {
-        grid-column: 1 / -1;
-        background: rgba(0,0,0,0.3);
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-        padding: 12px;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-    
-    .panel-title {
-        grid-column: 1 / -1;
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        color: var(--primary-color);
-        text-align: center;
-        font-weight: bold;
-        border-bottom: 1px solid var(--border-color);
-        padding-bottom: 5px;
-        margin-bottom: 5px;
-    }
-
-    .control-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        align-items: center;
-    }
-
-    .value-display {
-        float: right;
-        font-size: 10px;
-        color: var(--primary-color);
-    }
-
-    /* Özel Butonlar */
-    #toggleControls {
-        position: fixed;
-        bottom: calc(10px + var(--safe-area-bottom));
-        right: 20px;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        background: var(--control-bg);
-        border: 1px solid var(--border-color);
-        color: var(--text-color);
-        font-size: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 101;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-        backdrop-filter: blur(10px);
-    }
-
-    /* Modallar ve Mesajlar */
-    #statusMessage {
-        position: fixed;
-        bottom: 80px;
-        left: 50%;
-        transform: translateX(-50%) translateY(20px);
-        background: rgba(0,0,0,0.8);
-        border: 1px solid var(--primary-color);
-        color: var(--text-color);
-        padding: 10px 20px;
-        border-radius: 20px;
-        font-size: 13px;
-        opacity: 0;
-        transition: all 0.3s;
-        pointer-events: none;
-        z-index: 200;
-    }
-    #statusMessage.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-    .modal {
-        display: none;
-        position: fixed;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.8);
-        backdrop-filter: blur(5px);
-        z-index: 300;
-        justify-content: center;
-        align-items: center;
-        padding: 20px;
-    }
-    .modal-content {
-        background: #222;
-        border: 1px solid var(--border-color);
-        border-radius: 15px;
-        padding: 25px;
-        text-align: center;
-        max-width: 400px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    }
-    .modal-buttons { display: flex; gap: 10px; margin-top: 20px; }
-    .modal-buttons button { flex: 1; }
-
-    /* Şeker Yağmuru */
-    .candy {
-        position: fixed;
-        pointer-events: none;
-        z-index: 9999;
-        font-size: 24px;
-        animation: fall linear forwards;
-    }
-    @keyframes fall {
-        to { transform: translateY(110vh) rotate(720deg); opacity: 0; }
-    }
-
-    /* Nota Cetveli */
-    #noteRuler {
-        position: absolute;
-        right: 0; top: 0; bottom: 0;
-        width: 40px;
-        background: rgba(0,0,0,0.5);
-        border-left: 1px solid var(--border-color);
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        padding: 10px 0;
-        z-index: 5;
-        font-size: 10px;
-        color: #aaa;
-        text-align: center;
-    }
-    .ruler-note { border-bottom: 1px solid rgba(255,255,255,0.05); flex: 1; display:flex; align-items:center; justify-content:center;}
-
-    #credit {
-        text-align: center;
-        grid-column: 1 / -1;
-        font-size: 12px;
-        color: #666;
-        text-decoration: none;
-        padding: 10px;
-        cursor: pointer;
-    }
-    #credit:hover { color: var(--primary-color); }
-
+:root{--r:255;--g:100;--b:100;--bg-color:rgba(var(--r),var(--g),var(--b),0.3);--control-bg:rgba(var(--r),var(--g),var(--b),0.4);--text-color:rgba(255,255,255,0.95);--border-color:rgba(var(--r),var(--g),var(--b),0.8);--safe-area-inset-top:env(safe-area-inset-top,0px);--safe-area-inset-bottom:env(safe-area-inset-bottom,0px);}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;background-color:#111;color:var(--text-color);font-family:-apple-system,sans-serif;font-weight:400;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;touch-action:none;overscroll-behavior:none;overflow:hidden;}
+body{background-color:var(--bg-color);transition:background-color 0.1s ease;}
+#app-container{height:100%;display:flex;flex-direction:column;}
+#pad{width:100%;height:100vh;position:relative;display:flex;justify-content:center;align-items:center;background:radial-gradient(circle at center,var(--control-bg),rgba(0,0,0,0.4));cursor:crosshair;}
+#noteDisplay,#motionDisplay,#wahDisplay,#panDisplay{position:absolute;background-color:var(--control-bg);color:var(--text-color);pointer-events:none;z-index:10;border:2px solid var(--border-color);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);padding:8px 16px;border-radius:20px;font-size:14px;font-weight:500;transition:all 0.1s ease;}
+#noteDisplay{top:max(20px,var(--safe-area-inset-top,20px));left:50%;transform:translateX(-50%);font-size:24px;text-shadow:0 0 20px var(--border-color);}
+#motionDisplay,#wahDisplay,#panDisplay{bottom:20px;left:50%;transform:translateX(-50%);display:none;}
+#wahDisplay{bottom:60px;}#panDisplay{bottom:100px;}#motionDisplay{bottom:140px;}
+#noteRuler{position:absolute;right:0;top:0;bottom:0;width:60px;background:var(--control-bg);border-left:2px solid var(--border-color);display:flex;flex-direction:column;justify-content:space-between;padding:10px 0;pointer-events:none;z-index:5;}
+.ruler-note{display:flex;align-items:center;justify-content:center;flex:1;font-size:11px;color:var(--text-color);border-bottom:1px solid var(--border-color);}
+#controls{position:fixed;bottom:0;left:0;right:0;max-height:70vh;background:var(--control-bg);-webkit-backdrop-filter:blur(30px);backdrop-filter:blur(30px);border-top:2px solid var(--border-color);transform:translateY(calc(100% - 50px));transition:transform 0.3s ease;overflow-y:auto;padding:15px;display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;z-index:100;-ms-overflow-style:none;scrollbar-width:none;-webkit-overflow-scrolling:touch;touch-action:pan-y;}
+#controls::-webkit-scrollbar{display:none;}
+#controls.expanded{transform:translateY(0);}
+#toggleControls{position:fixed;bottom:10px;right:20px;width:50px;height:50px;border-radius:50%;background:var(--control-bg);border:2px solid var(--border-color);color:var(--text-color);font-size:20px;font-weight:bold;cursor:pointer;z-index:1000;display:flex;align-items:center;justify-content:center;box-shadow:0 0 25px var(--border-color);transition:all 0.1s ease;}
+button,select,input[type=range],label{font-family:inherit;font-size:12px;font-weight:500;border-radius:8px;border:2px solid var(--border-color);background:var(--control-bg);color:var(--text-color);-webkit-appearance:none;appearance:none;transition:all 0.1s ease;outline:none;}
+button{padding:10px 12px;cursor:pointer;min-height:40px;}
+button.active{background:var(--border-color);color:#111;font-weight:600;box-shadow:0 0 15px var(--border-color);}
+.control-group{display:flex;flex-direction:column;align-items:center;}
+label{font-size:10px;margin-bottom:3px;text-align:center;}
+input[type=range]{width:100%;height:6px;background:var(--border-color);border:none;margin:5px 0;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;background:var(--text-color);cursor:pointer;border-radius:50%;box-shadow:0 0 15px var(--border-color);}
+select{padding:8px;cursor:pointer;min-height:40px;width:100%;}
+#statusMessage{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--control-bg);color:var(--text-color);padding:8px 16px;border-radius:8px;font-size:12px;z-index:100;opacity:0;transition:opacity 0.3s;pointer-events:none;-webkit-backdrop-filter:blur(15px);backdrop-filter:blur(15px);border:2px solid var(--border-color);}
+#statusMessage.show{opacity:1;}
+.effect-group{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:8px 0;padding:8px;background:var(--control-bg);border-radius:8px;border:2px solid var(--border-color);}
+.effect-group-title{grid-column:1/-1;text-align:center;font-size:11px;font-weight:600;color:var(--text-color);margin-bottom:3px;}
+.rhythm-panel,.kick-panel,.animation-panel,.volume-panel{grid-column:1/-1;display:flex;flex-direction:column;gap:8px;margin:8px 0;padding:12px;background:var(--control-bg);border-radius:8px;border:2px solid var(--border-color);}
+.rhythm-title,.kick-title,.animation-title,.volume-title{text-align:center;font-size:11px;font-weight:600;color:var(--text-color);margin-bottom:5px;}
+.rhythm-buttons,.kick-controls,.animation-controls,.volume-controls{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:var(--control-bg);z-index:1000;justify-content:center;align-items:center;}
+.modal-content{background:var(--control-bg);padding:20px;border-radius:15px;max-width:80%;text-align:center;-webkit-backdrop-filter:blur(25px);backdrop-filter:blur(25px);border:2px solid var(--border-color);}
+.modal-buttons{display:flex;gap:8px;margin-top:15px;}
+.modal-buttons button{flex:1;}
+#waveAnimation{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;}
+.value-display{font-size:10px;margin-top:2px;color:var(--text-color);}
+#credit{color:var(--text-color);font-size:14px;text-decoration:none;font-family:'Courier New',monospace;background:var(--control-bg);padding:6px 12px;border-radius:12px;border:1px solid var(--border-color);pointer-events:auto;transition:all 0.2s ease;grid-column:1/-1;text-align:center;margin-top:10px;}
+#credit:active{background:var(--border-color);transform:scale(0.95);}
+.candy{position:fixed;pointer-events:none;user-select:none;z-index:1000;font-size:20px;opacity:0.8;}
 </style>
 </head>
 <body>
-
 <div id="app-container">
-    <!-- Oynama Alanı -->
-    <div id="pad">
-        <div id="noteDisplay">READY</div>
-        <div id="motionDisplay">Eğim:0°</div>
-        <div id="wahDisplay">Wah:KAPALI</div>
-        <div id="panDisplay">Pan:0%</div>
-        <div id="noteRuler"></div>
-        <canvas id="waveAnimation"></canvas>
-    </div>
-
-    <!-- Panel Açma Butonu -->
-    <button id="toggleControls">⚙️</button>
-
-    <!-- Kontrol Paneli -->
-    <div id="controls">
-        
-        <!-- Ana Kontroller -->
-        <div class="panel-section">
-            <div class="panel-title">Ana Kumanda</div>
-            <div class="control-row">
-                <button id="startBtn">▶ BAŞLAT</button>
-                <button id="stopBtn" disabled>■ DUR</button>
-                <button id="motionBtn">📱 Hareket</button>
-                <button id="panBtn">🎧 Pan</button>
-                <button id="octDown">Oktav -</button>
-                <button id="octUp">Oktav +</button>
-            </div>
-        </div>
-
-        <!-- Ses Ayarları -->
-        <div class="panel-section">
-            <div class="panel-title">Ses Mikseri</div>
-            <div class="control-group">
-                <label>Ana Ses <span id="masterVolumeValue" class="value-display">60</span></label>
-                <input type="range" id="masterVolume" min="0" max="100" value="60">
-            </div>
-            <div class="control-group">
-                <label>Synth Ses <span id="synthVolumeValue" class="value-display">80</span></label>
-                <input type="range" id="synthVolume" min="0" max="100" value="80">
-            </div>
-            <div class="control-group">
-                <label>Kick Ses <span id="kickVolumeValue" class="value-display">80</span></label>
-                <input type="range" id="kickVolume" min="0" max="100" value="80">
-            </div>
-        </div>
-
-        <!-- Synth & Efektler -->
-        <div class="panel-section">
-            <div class="panel-title">Synth & Efektler</div>
-            <div class="control-row">
-                <div class="control-group">
-                    <label>Dalga Formu</label>
-                    <select id="waveSelect">
-                        <option value="sawtooth">Testere (Saw)</option>
-                        <option value="triangle">Üçgen (Tri)</option>
-                        <option value="square">Kare (Sqr)</option>
-                        <option value="sine">Sinüs (Sine)</option>
-                        <option value="pulse">Pulse</option>
-                        <option value="fm">FM</option>
-                    </select>
-                </div>
-                <div class="control-group">
-                    <label>Detune <span id="detuneValue" class="value-display">15</span></label>
-                    <input type="range" id="detuneRange" min="0" max="100" value="15">
-                </div>
-            </div>
-            <div class="control-group">
-                <label>Filtre Frekans <span id="filterFreqValue" class="value-display">8000</span></label>
-                <input type="range" id="filterFreq" min="200" max="10000" value="8000" step="100">
-            </div>
-            <div class="control-group">
-                <label>Filtre Rezonans <span id="filterResoValue" class="value-display">1</span></label>
-                <input type="range" id="filterReso" min="0.1" max="20" value="1" step="0.5">
-            </div>
-            <div class="panel-title" style="margin-top:10px;">Efekt Anahtarları</div>
-            <div class="control-row">
-                <button id="toggleDist">Distortion</button>
-                <button id="toggleAutoWah">Auto Wah</button>
-                <button id="toggleFlanger">Flanger</button>
-                <button id="toggleChorus">Chorus</button>
-                <button id="toggleTremolo">Tremolo</button>
-                <button id="toggleDelay">Delay</button>
-                <button id="toggleReverb">Reverb</button>
-            </div>
-        </div>
-
-        <!-- Ritim -->
-        <div class="panel-section">
-            <div class="panel-title">Dinamik Ritim</div>
-            <div class="control-row">
-                <div class="control-group">
-                    <label>Hız (BPM) <span id="rhythmSpeedValue" class="value-display">120</span></label>
-                    <input type="range" id="rhythmSpeed" min="30" max="200" value="120">
-                </div>
-                <div class="control-group">
-                    <label>Şiddet <span id="rhythmIntensityValue" class="value-display">50</span></label>
-                    <input type="range" id="rhythmIntensity" min="0" max="100" value="50">
-                </div>
-            </div>
-            <div class="control-row">
-                <button id="startRhythmBtn">Ritmi Başlat</button>
-                <button id="stopRhythmBtn" disabled>Ritmi Durdur</button>
-            </div>
-        </div>
-
-        <!-- Kick Davul -->
-        <div class="panel-section">
-            <div class="panel-title">Kick Davul</div>
-            <div class="control-group">
-                <label>Pattern</label>
-                <select id="kickPattern">
-                    <option value="4/4">4/4 Beat</option>
-                    <option value="2/4">2/4 Beat</option>
-                    <option value="breakbeat">Breakbeat</option>
-                    <option value="offbeat">Offbeat</option>
-                    <option value="techno">Techno</option>
-                    <option value="house">House</option>
-                </select>
-            </div>
-            <div class="control-row">
-                <div class="control-group">
-                    <label>Punch <span id="kickPunchValue" class="value-display">70</span></label>
-                    <input type="range" id="kickPunch" min="0" max="100" value="70">
-                </div>
-                <div class="control-group">
-                    <label>Drive <span id="kickDistortionValue" class="value-display">40</span></label>
-                    <input type="range" id="kickDistortion" min="0" max="100" value="40">
-                </div>
-            </div>
-            <button id="kickSoloBtn" style="width:100%; margin-top:5px;">Kick Solo Modu</button>
-        </div>
-
-        <!-- Animasyonlar -->
-        <div class="panel-section">
-            <div class="panel-title">Görsel Efektler</div>
-            <div class="control-group">
-                <select id="animationSelect">
-                    <option value="network" selected>Ağ (Network)</option>
-                    <option value="psychedelic">Psikedelik</option>
-                    <option value="oscilloscope">Osiloskop</option>
-                    <option value="circularWave">Dairesel Dalga</option>
-                    <option value="matrix">Matrix</option>
-                    <option value="none">Yok</option>
-                </select>
-            </div>
-            <div class="control-row">
-                <div class="control-group">
-                    <label>Hız <span id="animSpeedValue" class="value-display">1</span></label>
-                    <input type="range" id="animSpeed" min="0.1" max="3" value="1" step="0.1">
-                </div>
-                <div class="control-group">
-                    <label>Yoğunluk <span id="animIntensityValue" class="value-display">1</span></label>
-                    <input type="range" id="animIntensity" min="0.1" max="2" value="1" step="0.1">
-                </div>
-            </div>
-        </div>
-
-        <a href="#" id="credit">Designed by C.D. v0.32 (Tıkla)</a>
-    </div>
+<div id="pad">
+<div id="noteDisplay">C4</div>
+<div id="motionDisplay">Eğim:0°</div>
+<div id="wahDisplay">Wah:AÇIK</div>
+<div id="panDisplay">Pan:0%</div>
+<div id="noteRuler"></div>
+<canvas id="waveAnimation"></canvas>
 </div>
-
+<button id="toggleControls">⚙️</button>
+<div id="controls">
+<button id="startBtn">Başlat</button>
+<button id="stopBtn" disabled>Dur</button>
+<button id="motionBtn">Hareket</button>
+<button id="panBtn">Pan</button>
+<button id="octDown">Oktav-</button>
+<button id="octUp">Oktav+</button>
+<div class="volume-panel">
+<div class="volume-title">SES MİKSerİ</div>
+<div class="volume-controls">
+<div class="control-group"><label>Ana Ses</label><input type="range" id="masterVolume" min="0" max="100" value="60"><div class="value-display" id="masterVolumeValue">60</div></div>
+<div class="control-group"><label>Synth Ses</label><input type="range" id="synthVolume" min="0" max="100" value="80"><div class="value-display" id="synthVolumeValue">80</div></div>
+<div class="control-group"><label>Kick Ses</label><input type="range" id="kickVolume" min="0" max="100" value="80"><div class="value-display" id="kickVolumeValue">80</div></div>
+<div class="control-group"><label>Efekt Ses</label><input type="range" id="effectsVolume" min="0" max="100" value="70"><div class="value-display" id="effectsVolumeValue">70</div></div>
+</div>
+</div>
+<div class="effect-group">
+<div class="effect-group-title">SYNTH & EFEKT KONTROLLERİ</div>
+<div class="control-group"><label>Dalga</label><select id="waveSelect"><option value="sawtooth">Testere</option><option value="triangle">Üçgen</option><option value="square">Kare</option><option value="sine">Sinüs</option><option value="pulse">Pulse</option><option value="fm">FM</option></select></div>
+<div class="control-group"><label>Detune</label><input type="range" id="detuneRange" min="0" max="50" value="15"><div class="value-display" id="detuneValue">15</div></div>
+<div class="control-group"><label>Filtre Frekans</label><input type="range" id="filterFreq" min="200" max="20000" value="8000" step="100"><div class="value-display" id="filterFreqValue">8000</div></div>
+<div class="control-group"><label>Filtre Rezonans</label><input type="range" id="filterReso" min="0.5" max="20" value="1" step="0.5"><div class="value-display" id="filterResoValue">1</div></div>
+<div class="control-group"><label>Wah Hızı</label><input type="range" id="autoWahRate" min="0.1" max="5" value="1" step="0.1"><div class="value-display" id="autoWahRateValue">1</div></div>
+<div class="control-group"><label>Wah Derinlik</label><input type="range" id="autoWahDepth" min="100" max="1500" value="800"><div class="value-display" id="autoWahDepthValue">800</div></div>
+<div class="effect-group-title" style="margin-top:8px;">EFEKT ANAHTARLARI</div>
+<button id="toggleDist">Distortion</button>
+<button id="toggleAutoWah">Auto Wah</button>
+<button id="toggleFlanger">Flanger</button>
+<button id="toggleChorus">Chorus</button>
+<button id="toggleTremolo">Tremolo</button>
+<button id="toggleDelay">Delay</button>
+<button id="toggleReverb">Reverb</button>
+</div>
+<div class="rhythm-panel">
+<div class="rhythm-title">DİNAMİK RİTİM</div>
+<div class="control-group"><label>Hız</label><input type="range" id="rhythmSpeed" min="30" max="2000" value="120"><div class="value-display" id="rhythmSpeedValue">120</div></div>
+<div class="control-group"><label>Şiddet</label><input type="range" id="rhythmIntensity" min="0" max="100" value="50"><div class="value-display" id="rhythmIntensityValue">50</div></div>
+<div class="rhythm-buttons">
+<button id="startRhythmBtn">Ritmi Başlat</button>
+<button id="stopRhythmBtn" disabled>Ritmi Durdur</button>
+</div>
+</div>
+<div class="kick-panel">
+<div class="kick-title">KİCK DAVUL - GÜÇLENDİRİLMİŞ BAS</div>
+<div class="kick-controls">
+<div class="control-group"><label>Ritim</label><select id="kickPattern"><option value="4/4">4/4 Beat</option><option value="2/4">2/4 Beat</option><option value="breakbeat">Breakbeat</option><option value="offbeat">Offbeat</option><option value="techno">Techno</option><option value="house">House</option><option value="minimal">Minimal</option></select></div>
+<div class="control-group"><label>Punch</label><input type="range" id="kickPunch" min="0" max="100" value="70"><div class="value-display" id="kickPunchValue">70</div></div>
+<div class="control-group"><label>Bas Derinlik</label><input type="range" id="kickBass" min="0" max="100" value="90"><div class="value-display" id="kickBassValue">90</div></div>
+<div class="control-group"><label>Drive</label><input type="range" id="kickDistortion" min="0" max="100" value="40"><div class="value-display" id="kickDistortionValue">40</div></div>
+<div class="control-group"><label>Süpürme</label><input type="range" id="kickSweep" min="0" max="100" value="80"><div class="value-display" id="kickSweepValue">80</div></div>
+</div>
+<button id="kickSoloBtn" style="grid-column:1/-1;margin-top:8px;">Kick Solo</button>
+</div>
+<div class="animation-panel">
+<div class="animation-title">GÖRSEL ANİMASYONLAR</div>
+<div class="control-group"><select id="animationSelect"><option value="none">Yok</option><option value="psychedelic">Psikedelik</option><option value="cosmicDust">Kozmik Toz</option><option value="network" selected>Ağ</option><option value="metaballs">Metaballs</option><option value="oscilloscope">Osiloskop</option><option value="equalizer">Ekolayzır</option><option value="circularWave">Dairesel Dalga</option><option value="kaleidoscope">Kaleidoskop</option><option value="spiral">Spiral</option><option value="matrix">Matrix</option></select></div>
+<div class="animation-controls">
+<div class="control-group"><label>Animasyon Hızı</label><input type="range" id="animSpeed" min="0.1" max="3" value="1" step="0.1"><div class="value-display" id="animSpeedValue">1</div></div>
+<div class="control-group"><label>Yoğunluk</label><input type="range" id="animIntensity" min="0.1" max="2" value="1" step="0.1"><div class="value-display" id="animIntensityValue">1</div></div>
+</div>
+</div>
+<a href="#" id="credit">Designed by C.D. v0.31α</a>
+</div>
+</div>
 <div id="statusMessage"></div>
-
 <div id="permissionModal" class="modal">
-    <div class="modal-content">
-        <h3>Hareket Erişimi Gerekli</h3>
-        <p>Cihazınızın eğimini (gyro) kullanarak sesi kontrol etmek için izin gerekiyor.</p>
-        <div class="modal-buttons">
-            <button id="permissionDeny">Reddet</button>
-            <button id="permissionAllow">İzin Ver</button>
-        </div>
-    </div>
+<div class="modal-content">
+<h3>Hareket Erişimi Gerekli</h3>
+<p>Bu özellik eğim kontrolü için cihazınızın hareket sensörlerine erişim gerektirir.</p>
+<div class="modal-buttons">
+<button id="permissionAllow">İzin Ver</button>
+<button id="permissionDeny">Reddet</button>
 </div>
-
+</div>
+</div>
 <script>
-/**
- * Synth - Eğlence Fabrikası
- * Tek dosya, kütüphanesiz Vanilla JS + Web Audio API
- */
-
-// --- Durum Yönetimi (State) ---
-const AppState = {
-    audioCtx: null,
-    isPlaying: false,
-    baseFreq: 261.63, // C4
-    octaveOffset: 0,
-    motionEnabled: false,
-    panEnabled: false,
-    rhythmActive: false,
-    kickSolo: false,
-    rhythmIndex: 0,
-    oscillators: [],
-    animationId: null,
-    themeHue: 0,
-    
-    // Ses Parametreleri
-    settings: {
-        waveType: 'sawtooth',
-        detune: 15,
-        filterFreq: 8000,
-        filterRes: 1,
-        volume: { master: 0.6, synth: 0.8, kick: 0.8 },
-        rhythm: { bpm: 120, intensity: 0.5 },
-        kick: { punch: 70, bass: 90, drive: 40, pattern: '4/4' },
-        anim: { type: 'network', speed: 1, intensity: 1 }
-    },
-    
-    // Efekt Durumları
-    effects: {
-        dist: false, autoWah: false, flanger: false, 
-        chorus: false, tremolo: false, delay: false, reverb: false
+const AppState={audioCtx:null,oscillators:[],masterGain:null,synthGain:null,kickGain:null,effectsGain:null,baseFreq:261.63,octaveOffset:0,tiltBend:0,detuneAmount:15,waveType:"sawtooth",isPlaying:false,motionEnabled:false,panEnabled:false,NUM_OSC:7,pulseWidth:0.5,rhythmActive:false,rhythmSpeed:120,rhythmIntensity:50,currentAnimation:"network",animationSpeed:1,animationIntensity:1,kickSolo:false,volumeSettings:{master:60,synth:80,kick:80,effects:70},kickSettings:{pattern:'4/4',punch:70,bass:90,distortion:40,sweep:80}};
+const effects={dist:false,autoWah:false,flanger:false,chorus:false,tremolo:false,delay:false,reverb:false};
+let audioNodes={},lfoStarted=false,rhythmInterval=null,kickOsc=null,kickGain=null,kickClickOsc=null,kickClickGain=null,kickFilter=null,kickDistortion=null,kickCompressor=null,animationFrameId=null,animationHue=0,touchPoint={x:0,y:0},activeTouches=new Map(),resizeHandler=null,candyPool=[],lastOrientationTime=0,lastTouchTime=0;
+const noteColors=[[255,100,100],[255,150,80],[255,220,80],[220,255,80],[120,255,100],[80,255,180],[80,220,255],[100,150,255],[150,100,255],[220,80,255],[255,80,220],[255,80,120]];
+const elements={pad:document.getElementById("pad"),noteDisplay:document.getElementById("noteDisplay"),motionDisplay:document.getElementById("motionDisplay"),wahDisplay:document.getElementById("wahDisplay"),panDisplay:document.getElementById("panDisplay"),startBtn:document.getElementById("startBtn"),stopBtn:document.getElementById("stopBtn"),motionBtn:document.getElementById("motionBtn"),panBtn:document.getElementById("panBtn"),statusMessage:document.getElementById("statusMessage"),permissionModal:document.getElementById("permissionModal"),controls:document.getElementById("controls"),toggleControls:document.getElementById("toggleControls"),noteRuler:document.getElementById("noteRuler"),startRhythmBtn:document.getElementById("startRhythmBtn"),stopRhythmBtn:document.getElementById("stopRhythmBtn"),kickVolume:document.getElementById("kickVolume"),kickPattern:document.getElementById("kickPattern"),kickPunch:document.getElementById("kickPunch"),kickBass:document.getElementById("kickBass"),kickDistortion:document.getElementById("kickDistortion"),kickSweep:document.getElementById("kickSweep"),waveCanvas:document.getElementById("waveAnimation"),animSpeed:document.getElementById("animSpeed"),animIntensity:document.getElementById("animIntensity"),animationSelect:document.getElementById("animationSelect"),kickSoloBtn:document.getElementById("kickSoloBtn"),masterVolume:document.getElementById("masterVolume"),synthVolume:document.getElementById("synthVolume"),effectsVolume:document.getElementById("effectsVolume"),credit:document.getElementById("credit")};
+const noteNames=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const patternMap={'4/4':[1,0,0.8,0,1,0,0.6,0],'2/4':[1,0,0,0,1,0,0,0],'breakbeat':[1,0,0.7,0,0.8,0.3,0,0.6],'offbeat':[0,1,0,0.8,0,1,0,0.7],'techno':[1,0,0,0.5,1,0,0,0.5],'house':[1,0,0.8,0,0.6,0,0.8,0],'minimal':[1,0,0,0,0.5,0,0,0]};
+const animations={none:{init(){},draw(ctx){ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);}},psychedelic:{init(){},draw(ctx,time){const w=ctx.canvas.width,h=ctx.canvas.height;ctx.fillStyle='rgba(0,0,0,0.1)';ctx.fillRect(0,0,w,h);const centerX=w/2,centerY=h/2;for(let i=0;i<5;i++){ctx.save();ctx.translate(centerX,centerY);ctx.rotate(time*(0.1+i*0.05)*AppState.animationSpeed);const hue=(animationHue+i*30+time*20)%360;ctx.strokeStyle=`hsla(${hue},100%,60%,${0.15-i*0.02})`;ctx.lineWidth=2-i*0.3;ctx.beginPath();for(let j=0;j<6;j++){const angle=(j/6)*Math.PI*2;const radius=100+Math.sin(time*2+i)*50*AppState.animationIntensity+i*20;const x=Math.cos(angle+time)*radius;const y=Math.sin(angle+time)*radius;if(j===0)ctx.moveTo(x,y);else{const cpx=Math.cos(angle-0.5+time)*(radius*1.5);const cpy=Math.sin(angle-0.5+time)*(radius*1.5);ctx.quadraticCurveTo(cpx,cpy,x,y);}}ctx.closePath();ctx.stroke();ctx.restore();}}},cosmicDust:{particles:[],init(){this.particles=[];const particleCount=Math.min(150,Math.floor(window.innerWidth*window.innerHeight/4000));for(let i=0;i<particleCount;i++){this.particles.push({x:Math.random()*elements.waveCanvas.width,y:Math.random()*elements.waveCanvas.height,size:Math.random()*2+0.5,sx:(Math.random()*0.5-0.25)*AppState.animationSpeed,sy:(Math.random()*0.5-0.25)*AppState.animationSpeed});}},draw(ctx){ctx.fillStyle='rgba(0,0,0,0.05)';ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height);this.particles.forEach(p=>{p.x+=p.sx;p.y+=p.sy;if(p.x>ctx.canvas.width)p.x=0;if(p.x<0)p.x=ctx.canvas.width;if(p.y>ctx.canvas.height)p.y=0;if(p.y<0)p.y=ctx.canvas.height;ctx.fillStyle=`hsl(${animationHue},100%,70%)`;ctx.shadowBlur=10*AppState.animationIntensity;ctx.shadowColor=`hsl(${animationHue},100%,70%)`;ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();});ctx.shadowBlur=0;}},network:{nodes:[],init(){this.nodes=[];const nodeCount=Math.min(80,Math.floor(window.innerWidth*window.innerHeight/4000));for(let i=0;i<nodeCount;i++){this.nodes.push({x:Math.random()*elements.waveCanvas.width,y:Math.random()*elements.waveCanvas.height,vx:(Math.random()-0.5)*0.5*AppState.animationSpeed,vy:(Math.random()-0.5)*0.5*AppState.animationSpeed});}},draw(ctx){ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);this.nodes.forEach(n=>{n.x+=n.vx;n.y+=n.vy;if(n.x<0||n.x>ctx.canvas.width)n.vx=-n.vx;if(n.y<0||n.y>ctx.canvas.height)n.vy=-n.vy;});for(let i=0;i<this.nodes.length;i++){for(let j=i+1;j<this.nodes.length;j++){const dx=this.nodes[i].x-this.nodes[j].x;const dy=this.nodes[i].y-this.nodes[j].y;const dist=Math.sqrt(dx*dx+dy*dy);if(dist<150){const opacity=(1-(dist/150))*AppState.animationIntensity;ctx.strokeStyle=`hsla(${animationHue},100%,60%,${opacity*0.5})`;ctx.beginPath();ctx.moveTo(this.nodes[i].x,this.nodes[i].y);ctx.lineTo(this.nodes[j].x,this.nodes[j].y);ctx.stroke();}}}this.nodes.forEach(n=>{ctx.fillStyle=`hsla(${animationHue},100%,80%,0.8)`;ctx.beginPath();ctx.arc(n.x,n.y,2,0,Math.PI*2);ctx.fill();});}},metaballs:{init(){},draw(ctx,time){ctx.fillStyle='rgba(0,0,0,0.1)';ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height);const balls=[{x:ctx.canvas.width/2+Math.sin(time)*100,y:ctx.canvas.height/2+Math.cos(time)*80,r:40},{x:ctx.canvas.width/2+Math.sin(time*1.3)*120,y:ctx.canvas.height/2+Math.cos(time*0.7)*90,r:35},{x:ctx.canvas.width/2+Math.sin(time*0.7)*80,y:ctx.canvas.height/2+Math.cos(time*1.5)*70,r:45}];for(let x=0;x<ctx.canvas.width;x+=4){for(let y=0;y<ctx.canvas.height;y+=4){let sum=0;balls.forEach(ball=>{const dx=x-ball.x;const dy=y-ball.y;const d=Math.sqrt(dx*dx+dy*dy);sum+=ball.r/d;});if(sum>1){ctx.fillStyle=`hsla(${animationHue},100%,${Math.min(100,sum*30)}%,${Math.min(1,sum-1)})`;ctx.fillRect(x-2,y-2,4,4);}}}}},oscilloscope:{init(){},draw(ctx,time){ctx.fillStyle='rgba(0,0,0,0.1)';ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height);ctx.strokeStyle=`hsl(${animationHue},100%,70%)`;ctx.lineWidth=2;ctx.beginPath();for(let x=0;x<ctx.canvas.width;x++){const y=ctx.canvas.height/2+Math.sin(x*0.05+time*3)*50*AppState.animationIntensity+Math.sin(x*0.03+time*2)*30*AppState.animationSpeed;if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}ctx.stroke();}},equalizer:{bars:[],init(){this.bars=Array(32).fill(0);},draw(ctx,time){ctx.fillStyle='rgba(0,0,0,0.1)';ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height);const barWidth=ctx.canvas.width/this.bars.length;this.bars.forEach((bar,i)=>{const height=20+Math.sin(time*2+i*0.3)*15*AppState.animationIntensity+Math.sin(time*3+i*0.5)*10*AppState.animationSpeed;const hue=(animationHue+i*5)%360;ctx.fillStyle=`hsl(${hue},100%,60%)`;ctx.fillRect(i*barWidth,ctx.canvas.height-height,barWidth-2,height);});}},circularWave:{init(){},draw(ctx,time){ctx.fillStyle='rgba(0,0,0,0.05)';ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height);const centerX=ctx.canvas.width/2,centerY=ctx.canvas.height/2;for(let i=0;i<5;i++){const radius=50+i*30+Math.sin(time+i)*20*AppState.animationIntensity;const hue=(animationHue+i*40)%360;ctx.strokeStyle=`hsla(${hue},100%,60%,${0.8-i*0.15})`;ctx.lineWidth=3;ctx.beginPath();ctx.arc(centerX,centerY,radius,0,Math.PI*2);ctx.stroke();}}},kaleidoscope:{init(){},draw(ctx,time){ctx.fillStyle='rgba(0,0,0,0.1)';ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height);const segments=12,centerX=ctx.canvas.width/2,centerY=ctx.canvas.height/2,maxRadius=Math.min(centerX,centerY);for(let i=0;i<segments;i++){const angle=(i/segments)*Math.PI*2,hue=(animationHue+i*30)%360;ctx.save();ctx.translate(centerX,centerY);ctx.rotate(angle);ctx.fillStyle=`hsla(${hue},100%,60%,0.3)`;ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,maxRadius,0,Math.PI/segments);ctx.closePath();ctx.fill();ctx.strokeStyle=`hsla(${hue},100%,80%,0.8)`;ctx.lineWidth=2;ctx.stroke();ctx.restore();}}},spiral:{init(){},draw(ctx,time){ctx.fillStyle='rgba(0,0,0,0.1)';ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height);const centerX=ctx.canvas.width/2,centerY=ctx.canvas.height/2;ctx.strokeStyle=`hsl(${animationHue},100%,70%)`;ctx.lineWidth=2;ctx.beginPath();for(let i=0;i<200;i++){const angle=0.1*i,radius=5+i*0.5,x=centerX+Math.cos(angle+time)*radius,y=centerY+Math.sin(angle+time)*radius;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}ctx.stroke();}},matrix:{chars:"01",columns:[],init(){this.columns=Array(Math.floor(window.innerWidth/20)).fill(0);},draw(ctx){ctx.fillStyle='rgba(0,0,0,0.05)';ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height);ctx.fillStyle=`hsl(${animationHue},100%,60%)`;ctx.font='15px monospace';this.columns.forEach((y,i)=>{const x=i*20,char=this.chars[Math.floor(Math.random()*this.chars.length)];ctx.fillText(char,x,y);if(y>100+Math.random()*10000){this.columns[i]=0;}else{this.columns[i]=y+20;}});}}};
+function isAudioContextValid(){return AppState.audioCtx&&(AppState.audioCtx.state==='running'||AppState.audioCtx.state==='suspended');}
+function safeAudioOperation(op){if(!isAudioContextValid()){showStatus('Ses bağlamı hazır değil. Önce synth\'i başlatman lazım!');return false;}try{op();return true;}catch(e){console.error('Ses işlemi başarısız:',e);showStatus('Ses hatası: '+e.message+' - Kulakların için üzgünüm!');return false;}}
+function showStatus(msg,dur=1500){if(!elements.statusMessage)return;elements.statusMessage.textContent=msg;elements.statusMessage.classList.add('show');setTimeout(()=>{if(elements.statusMessage)elements.statusMessage.classList.remove('show');},dur);}
+function updateButtonStates(){if(!elements.startBtn)return;elements.startBtn.disabled=AppState.isPlaying;elements.stopBtn.disabled=!AppState.isPlaying;elements.startRhythmBtn.disabled=AppState.rhythmActive||!AppState.isPlaying;elements.stopRhythmBtn.disabled=!AppState.rhythmActive;elements.motionBtn.textContent=AppState.motionEnabled?"Hareket AÇIK":"Hareket";elements.motionBtn.classList.toggle('active',AppState.motionEnabled);elements.panBtn.textContent=AppState.panEnabled?"Pan AÇIK":"Pan";elements.panBtn.classList.toggle('active',AppState.panEnabled);elements.kickSoloBtn.classList.toggle('active',AppState.kickSolo);}
+function playKick(beat){if(!isAudioContextValid())return;const pattern=patternMap[AppState.kickSettings.pattern],intensity=AppState.rhythmIntensity/100;if(!pattern||!pattern[beat%pattern.length]||Math.random()>intensity)return;const now=AppState.audioCtx.currentTime,punch=AppState.kickSettings.punch/100,bass=AppState.kickSettings.bass/100,distortion=AppState.kickSettings.distortion/100,sweep=AppState.kickSettings.sweep/100,baseFreq=50+40*punch*(1-bass*0.3),endFreq=25+20*(1-sweep)*(1-bass*0.5),sweepTime=0.08+0.08*sweep+bass*0.12,clickFreq=1200+800*punch,clickTime=0.008,bassBoost=0.5+bass*0.8;try{kickOsc.frequency.setValueAtTime(baseFreq,now);kickOsc.frequency.exponentialRampToValueAtTime(endFreq,now+sweepTime);kickGain.gain.setValueAtTime(1.5*bassBoost,now);kickGain.gain.exponentialRampToValueAtTime(0.001,now+sweepTime+0.15+bass*0.1);kickClickOsc.frequency.setValueAtTime(clickFreq,now);kickClickGain.gain.setValueAtTime(punch*1.2,now);kickClickGain.gain.exponentialRampToValueAtTime(0.001,now+clickTime);const filterFreq=800+400*punch-bass*600,filterQ=1+bass*2;kickFilter.frequency.setValueAtTime(filterFreq,now);kickFilter.frequency.exponentialRampToValueAtTime(60+bass*40,now+sweepTime);kickFilter.Q.setValueAtTime(filterQ,now);const distortionAmount=15+distortion*20;updateKickDistortionCurve(distortionAmount);kickCompressor.threshold.value=-30-punch*10-bass*5;}catch(error){console.error('Kick çalma hatası:',error);}}
+function cleanupOscillators(){if(AppState.oscillators.length>0){AppState.oscillators.forEach(osc=>{try{if(osc.stop)osc.stop();if(osc.disconnect)osc.disconnect();if(osc.modulator){try{osc.modulator.stop();osc.modulator.disconnect();}catch(e){console.log('Modülatör temizleme hatası:',e);}}if(osc.pulseWidth){try{osc.pulseWidth.disconnect();}catch(e){console.log('Pulse genişlik temizleme hatası:',e);}}if(osc.modGain){try{osc.modGain.disconnect();}catch(e){console.log('Mod kazancı temizleme hatası:',e);}}}catch(e){console.log('Osilatör temizleme hatası:',e);}});AppState.oscillators=[];}}
+function cleanupAudioNodes(){
+    // LFO'ları durdur
+    if (audioNodes.autoWahLFO && audioNodes.autoWahLFO.stop) {
+        try { audioNodes.autoWahLFO.stop(); } catch(e) {}
     }
-};
-
-// --- Ses Düğümleri (Nodes) ---
-let nodes = {};
-
-// --- Sabitler ---
-const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-const PATTERN_MAP = {
-    '4/4':      [1,0,0.5,0,1,0,0.5,0],
-    '2/4':      [1,0,0,0,1,0,0,0],
-    'breakbeat':[1,0,0.7,0,0.8,0.3,0,0.6],
-    'offbeat':  [0,1,0,0.8,0,1,0,0.7],
-    'techno':   [1,0,0,0.5,1,0,0,0.5],
-    'house':    [1,0,0.8,0,0.6,0,0.8,0]
-};
-
-// --- DOM Elementleri ---
-const el = (id) => document.getElementById(id);
-const elements = {
-    pad: el('pad'),
-    canvas: el('waveAnimation'),
-    noteDisplay: el('noteDisplay'),
-    controls: el('controls'),
-    status: el('statusMessage'),
-    modal: el('permissionModal'),
-    toggleControls: el('toggleControls')
-};
-
-// --- Yardımcı Fonksiyonlar ---
-
-function showStatus(msg, duration = 2000) {
-    if (!elements.status) return;
-    elements.status.textContent = msg;
-    elements.status.classList.add('show');
-    clearTimeout(elements.status.timer);
-    elements.status.timer = setTimeout(() => {
-        elements.status.classList.remove('show');
-    }, duration);
-}
-
-function updateThemeColor(noteName) {
-    const index = NOTE_NAMES.indexOf(noteName);
-    if (index !== -1) {
-        // Notaya göre renk hesapla
-        const hue = (index / 12) * 360;
-        document.documentElement.style.setProperty('--primary-hue', hue);
-        AppState.themeHue = hue;
+    if (audioNodes.flangerLFO && audioNodes.flangerLFO.stop) {
+        try { audioNodes.flangerLFO.stop(); } catch(e) {}
     }
-}
-
-function freqToNote(freq) {
-    const A4 = 440;
-    const semitones = 12 * Math.log2(freq / A4);
-    const noteIndex = Math.round(semitones + 9) % 12;
-    const octave = Math.floor(Math.round(semitones + 9) / 12) + 4;
-    return { name: NOTE_NAMES[noteIndex], full: `${NOTE_NAMES[noteIndex]}${octave}` };
-}
-
-// --- Ses Motoru (Audio Engine) ---
-
-async function initAudio() {
-    if (AppState.audioCtx) return;
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    AppState.audioCtx = new AudioContext();
-    
-    // Master Gain
-    nodes.master = AppState.audioCtx.createGain();
-    nodes.master.connect(AppState.audioCtx.destination);
-    
-    // Synth Gain
-    nodes.synthGain = AppState.audioCtx.createGain();
-    nodes.synthGain.gain.value = AppState.settings.volume.synth;
-    
-    // Kick Gain
-    nodes.kickGain = AppState.audioCtx.createGain();
-    nodes.kickGain.gain.value = AppState.settings.volume.kick;
-    
-    // Panner
-    nodes.panner = AppState.audioCtx.createStereoPanner();
-    nodes.panner.pan.value = 0;
-
-    // Filtre
-    nodes.filter = AppState.audioCtx.createBiquadFilter();
-    nodes.filter.type = 'lowpass';
-    nodes.filter.frequency.value = AppState.settings.filterFreq;
-    nodes.filter.Q.value = AppState.settings.filterRes;
-
-    // Efektler Oluştur
-    createEffects();
-
-    // Bağlantıları Kur
-    connectAudioGraph();
-    
-    // Osilatörleri Başlat (Sessizce)
-    createOscillators();
-}
-
-function createEffects() {
-    const ctx = AppState.audioCtx;
-    
-    // Distortion
-    nodes.dist = ctx.createWaveShaper();
-    nodes.dist.curve = makeDistortionCurve(0);
-    nodes.distGain = ctx.createGain();
-    nodes.distGain.gain.value = 0;
-
-    // Delay
-    nodes.delay = ctx.createDelay(1.0);
-    nodes.delay.delayTime.value = 0.3;
-    nodes.delayFeedback = ctx.createGain();
-    nodes.delayFeedback.gain.value = 0.4;
-
-    // Reverb (Impulse Response)
-    nodes.reverb = ctx.createConvolver();
-    nodes.reverb.buffer = createImpulseResponse(2, 2.0, false);
-    nodes.reverbGain = ctx.createGain();
-    nodes.reverbGain.gain.value = 0;
-
-    // AutoWah (LFO -> Filter Freq)
-    nodes.autoWah = ctx.createBiquadFilter();
-    nodes.autoWah.type = 'bandpass';
-    nodes.autoWah.Q.value = 10;
-    nodes.lfo = ctx.createOscillator();
-    nodes.lfo.frequency.value = 2;
-    nodes.lfoGain = ctx.createGain();
-    nodes.lfoGain.gain.value = 0;
-    nodes.lfo.start();
-
-    // Tremolo (LFO -> Gain)
-    nodes.tremoloGain = ctx.createGain();
-    nodes.tremoloOsc = ctx.createOscillator();
-    nodes.tremoloOsc.frequency.value = 5;
-    nodes.tremoloDepth = ctx.createGain();
-    nodes.tremoloDepth.gain.value = 0;
-    nodes.tremoloOsc.start();
-    
-    // Chorus / Flanger (Basitleştirilmiş Delay)
-    nodes.chorusDelay = ctx.createDelay(0.05);
-    nodes.chorusLFO = ctx.createOscillator();
-    nodes.chorusLFO.frequency.value = 0.5;
-    nodes.chorusLFO.start();
-}
-
-function makeDistortionCurve(amount) {
-    const k = typeof amount === 'number' ? amount : 50;
-    const n_samples = 44100;
-    const curve = new Float32Array(n_samples);
-    const deg = Math.PI / 180;
-    for (let i = 0; i < n_samples; ++i) {
-        const x = i * 2 / n_samples - 1;
-        curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
+    if (audioNodes.chorusLFO && audioNodes.chorusLFO.stop) {
+        try { audioNodes.chorusLFO.stop(); } catch(e) {}
     }
-    return curve;
-}
-
-function createImpulseResponse(duration, decay, reverse) {
-    const sampleRate = AppState.audioCtx.sampleRate;
-    const length = sampleRate * duration;
-    const impulse = AppState.audioCtx.createBuffer(2, length, sampleRate);
-    const left = impulse.getChannelData(0);
-    const right = impulse.getChannelData(1);
-    for (let i = 0; i < length; i++) {
-        const n = reverse ? length - i : i;
-        left[i] = (Math.random() * 2 - 1) * Math.pow(1 - n / length, decay);
-        right[i] = (Math.random() * 2 - 1) * Math.pow(1 - n / length, decay);
+    if (audioNodes.tremoloLFO && audioNodes.tremoloLFO.stop) {
+        try { audioNodes.tremoloLFO.stop(); } catch(e) {}
     }
-    return impulse;
-}
-
-function connectAudioGraph() {
-    // Önce her şeyi kes
-    nodes.synthGain.disconnect();
-    nodes.kickGain.disconnect();
-    nodes.panner.disconnect();
-
-    // Synth Zinciri
-    let synthSource = nodes.synthGain;
-    
-    if (AppState.effects.dist) {
-        nodes.dist.curve = makeDistortionCurve(50);
-        nodes.distGain.gain.value = 1;
-        synthSource.connect(nodes.dist);
-        synthSource = nodes.dist;
-    } else {
-        nodes.distGain.gain.value = 0;
-    }
-
-    // Filtre her zaman aktif (parametreyle kontrol edilir)
-    synthSource.connect(nodes.filter);
-    synthSource = nodes.filter;
-
-    if (AppState.effects.autoWah) {
-        nodes.lfoGain.gain.value = 400; // Sweep genişliği
-        nodes.lfo.connect(nodes.lfoGain);
-        nodes.lfoGain.connect(nodes.autoWah.frequency);
-        nodes.autoWah.frequency.value = 1000;
-        synthSource.connect(nodes.autoWah);
-        synthSource = nodes.autoWah;
-    } else {
-        nodes.lfoGain.gain.value = 0;
-    }
-
-    if (AppState.effects.delay) {
-        synthSource.connect(nodes.delay);
-        synthSource = nodes.delay;
-        nodes.delay.connect(nodes.delayFeedback);
-        nodes.delayFeedback.connect(nodes.delay);
-    }
-
-    if (AppState.effects.reverb) {
-        nodes.reverbGain.gain.value = 0.5;
-        synthSource.connect(nodes.reverb);
-        synthSource = nodes.reverb;
-    }
-
-    if (AppState.effects.tremolo) {
-        nodes.tremoloDepth.gain.value = 0.5;
-        nodes.tremoloOsc.connect(nodes.tremoloDepth);
-        synthSource.connect(nodes.tremoloGain);
-        nodes.tremoloDepth.connect(nodes.tremoloGain.gain);
-        synthSource = nodes.tremoloGain;
-    }
-
-    // Panner -> Master
-    synthSource.connect(nodes.panner);
-    
-    // Kick Solo Kontrolü
-    if (AppState.kickSolo) {
-        nodes.panner.disconnect();
-        nodes.kickGain.connect(nodes.master);
-    } else {
-        nodes.panner.connect(nodes.master);
-        nodes.kickGain.connect(nodes.master);
-    }
-}
-
-function createOscillators() {
-    const now = AppState.audioCtx.currentTime;
-    // Unison / Detuned Oscillators
-    const count = 5; // Ses kalitesi için osilatör sayısı
-    
-    for(let i=0; i<count; i++) {
-        const osc = AppState.audioCtx.createOscillator();
-        osc.type = AppState.settings.waveType;
-        
-        // Detune hesapla
-        const detuneVal = (i - Math.floor(count/2)) * AppState.settings.detune;
-        osc.detune.value = detuneVal;
-        
-        osc.connect(nodes.synthGain);
-        osc.start(now);
-        AppState.oscillators.push(osc);
-    }
-}
-
-function updatePitch(freq) {
-    if (!AppState.audioCtx) return;
-    AppState.baseFreq = freq;
-    const now = AppState.audioCtx.currentTime;
-    AppState.oscillators.forEach(osc => {
-        osc.frequency.setTargetAtTime(freq, now, 0.01);
+  
+    // Tüm ses düğümlerinin bağlantısını kes
+    Object.values(audioNodes).forEach(node=>{
+        if(node&&typeof node.disconnect==='function'){
+            try{node.disconnect();}catch(e){console.log('Ses düğümü bağlantı kesme hatası:',e);}
+        }
     });
-    
-    // UI Güncelle
-    const note = freqToNote(freq);
-    el('noteDisplay').textContent = note.full;
-    updateThemeColor(note.name);
+    audioNodes={};
+    lfoStarted=false;
+  
+    // Kick düğümlerini temizle
+    const kickNodes=[kickOsc,kickGain,kickClickOsc,kickClickGain,kickFilter,kickDistortion,kickCompressor];
+    kickNodes.forEach(node=>{
+        if(node){
+            try{
+                node.disconnect();
+                if(node.stop){node.stop();}
+            }catch(e){console.log('Kick düğümü temizleme hatası:',e);}
+        }
+    });
+    kickOsc=null;kickGain=null;kickClickOsc=null;kickClickGain=null;kickFilter=null;kickDistortion=null;kickCompressor=null;
 }
-
-function playKick() {
-    if (!AppState.audioCtx) return;
-    const ctx = AppState.audioCtx;
-    const t = ctx.currentTime;
-    
-    // Pattern Kontrolü
-    const pattern = PATTERN_MAP[AppState.settings.kick.pattern] || [1,0];
-    const velocity = pattern[AppState.rhythmIndex % pattern.length];
-    
-    // Şiddet kontrolü
-    if (Math.random() > AppState.settings.rhythm.intensity || velocity === 0) {
-        AppState.rhythmIndex++;
-        return;
-    }
-
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    
-    // Kick Sesi Tasarımı (Synthesis)
-    const punch = AppState.settings.kick.punch / 100;
-    const startFreq = 150 + (50 * punch);
-    const endFreq = 30;
-    
-    osc.frequency.setValueAtTime(startFreq, t);
-    osc.frequency.exponentialRampToValueAtTime(endFreq, t + 0.5);
-    
-    // Envelope
-    gain.gain.setValueAtTime(1, t);
-    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
-    
-    // Drive
-    if (AppState.settings.kick.drive > 0) {
-        const dist = ctx.createWaveShaper();
-        dist.curve = makeDistortionCurve(AppState.settings.kick.drive);
-        osc.connect(dist);
-        dist.connect(gain);
-    } else {
-        osc.connect(gain);
-    }
-    
-    gain.connect(nodes.kickGain);
-    osc.start(t);
-    osc.stop(t + 0.6);
-
-    // Görsel Efekt
-    triggerPulse();
-
-    AppState.rhythmIndex++;
-}
-
-function triggerPulse() {
-    // Basit bir görsel pulse efekti
-    elements.canvas.style.filter = `brightness(1.5) hue-rotate(${Math.random()*90}deg)`;
-    setTimeout(() => {
-        elements.canvas.style.filter = 'none';
-    }, 50);
-}
-
-// --- Görselleştirme (Visualizer) ---
-
-const Visuals = {
-    ctx: elements.canvas.getContext('2d'),
-    width: 0,
-    height: 0,
-    particles: [],
-    
-    init() {
-        this.resize();
-        window.addEventListener('resize', () => this.resize());
-        this.initParticles();
-    },
-    
-    resize() {
-        this.width = elements.canvas.width = window.innerWidth;
-        this.height = elements.canvas.height = window.innerHeight;
-        this.initParticles();
-    },
-    
-    initParticles() {
-        this.particles = [];
-        const count = Math.min(60, (this.width * this.height) / 8000);
-        for(let i=0; i<count; i++) {
-            this.particles.push({
-                x: Math.random() * this.width,
-                y: Math.random() * this.height,
-                vx: (Math.random() - 0.5) * AppState.settings.anim.speed,
-                vy: (Math.random() - 0.5) * AppState.settings.anim.speed
-            });
-        }
-    },
-    
-    draw() {
-        if (!AppState.isPlaying) return;
-        
-        const ctx = this.ctx;
-        const time = Date.now() * 0.001 * AppState.settings.anim.speed;
-        
-        // Arkaplan temizle (Efekt için hafif iz bırakır)
-        ctx.fillStyle = 'rgba(0,0,0,0.1)';
-        ctx.fillRect(0, 0, this.width, this.height);
-        
-        const type = AppState.settings.anim.type;
-        
-        if (type === 'network') {
-            ctx.strokeStyle = `hsla(${AppState.themeHue}, 100%, 60%, 0.3)`;
-            ctx.fillStyle = `hsla(${AppState.themeHue}, 100%, 70%, 0.8)`;
-            
-            this.particles.forEach((p, i) => {
-                p.x += p.vx;
-                p.y += p.vy;
-                
-                if(p.x < 0 || p.x > this.width) p.vx *= -1;
-                if(p.y < 0 || p.y > this.height) p.vy *= -1;
-                
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
-                ctx.fill();
-                
-                for(let j=i+1; j<this.particles.length; j++) {
-                    const p2 = this.particles[j];
-                    const dist = Math.hypot(p.x - p2.x, p.y - p2.y);
-                    if(dist < 150 * AppState.settings.anim.intensity) {
-                        ctx.beginPath();
-                        ctx.moveTo(p.x, p.y);
-                        ctx.lineTo(p2.x, p2.y);
-                        ctx.stroke();
-                    }
-                }
-            });
-        } 
-        else if (type === 'psychedelic') {
-            const cx = this.width / 2;
-            const cy = this.height / 2;
-            ctx.save();
-            ctx.translate(cx, cy);
-            for(let i=0; i<5; i++) {
-                ctx.rotate(time * 0.1 + i);
-                ctx.strokeStyle = `hsla(${(AppState.themeHue + i*30) % 360}, 100%, 60%, 0.5)`;
-                ctx.beginPath();
-                const r = 50 + Math.sin(time * 2 + i) * 100 * AppState.settings.anim.intensity;
-                ctx.rect(-r/2, -r/2, r, r);
-                ctx.stroke();
-            }
-            ctx.restore();
-        }
-        else if (type === 'oscilloscope') {
-            ctx.strokeStyle = '#0f0';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            for(let x=0; x<this.width; x++) {
-                const y = this.height/2 + Math.sin(x * 0.02 + time * 5) * 100 * AppState.settings.anim.intensity * Math.sin(time);
-                ctx.lineTo(x, y);
-            }
-            ctx.stroke();
-        }
-        else if (type === 'matrix') {
-            ctx.fillStyle = `hsla(${AppState.themeHue}, 100%, 60%, 0.8)`;
-            ctx.font = '15px monospace';
-            if (Math.random() > 0.9) {
-                const x = Math.floor(Math.random() * (this.width / 20)) * 20;
-                const char = String.fromCharCode(0x30A0 + Math.random() * 96);
-                ctx.fillText(char, x, 0); // Başlat
-            }
-            // Basit simülasyon için yeterli
-        }
-
-        requestAnimationFrame(() => this.draw());
-    }
-};
-
-// --- Etkileşim Yöneticisi (Interaction) ---
-
-function handleInput(x, y) {
-    if (!AppState.audioCtx) return;
-    
-    // Y ekseni -> Frekans (Pitch)
-    // Ekranın üstü yüksek frekans, altı düşük
-    const height = window.innerHeight;
-    const ratio = 1 - (y / height);
-    // Logaritmik hissiyat için
-    const minOct = 1; 
-    const maxOct = 4; 
-    const octave = AppState.octaveOffset + (minOct + ratio * maxOct);
-    const freq = 65.41 * Math.pow(2, octave); // C2 tabanlı
-    
-    updatePitch(freq);
-    
-    // X ekseni -> Filter Cutoff (Pan modu kapalıysa)
-    if (!AppState.panEnabled) {
-        const width = window.innerWidth;
-        const filterVal = 200 + (x / width) * 5000;
-        if (nodes.filter) {
-            nodes.filter.frequency.setTargetAtTime(filterVal, AppState.audioCtx.currentTime, 0.05);
-        }
-    }
-}
-
-function setupEventListeners() {
-    // Dokunmatik / Mouse
-    const startHandler = (e) => {
-        if (!AppState.isPlaying) {
-            showStatus("Başlat butonuna basmalısın!");
-            return;
-        }
-        e.preventDefault();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        handleInput(clientX, clientY);
-    };
-    
-    const moveHandler = (e) => {
-        e.preventDefault();
-        if (!AppState.isPlaying) return;
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        handleInput(clientX, clientY);
-    };
-
-    elements.pad.addEventListener('mousedown', startHandler);
-    elements.pad.addEventListener('mousemove', moveHandler);
-    elements.pad.addEventListener('touchstart', startHandler, {passive: false});
-    elements.pad.addEventListener('touchmove', moveHandler, {passive: false});
-
-    // UI Kontrolleri
-    el('startBtn').onclick = async () => {
-        await initAudio();
-        await AppState.audioCtx.resume();
-        AppState.isPlaying = true;
-        Visuals.init();
-        Visuals.draw();
-        
-        el('startBtn').disabled = true;
-        el('stopBtn').disabled = false;
-        el('startRhythmBtn').disabled = false;
-        
-        elements.controls.classList.remove('expanded');
-        showStatus("Synth Aktif! Ekranı dokunarak çal.");
-    };
-
-    el('stopBtn').onclick = () => {
-        AppState.isPlaying = false;
-        if(AppState.audioCtx) AppState.audioCtx.suspend();
-        el('startBtn').disabled = false;
-        el('stopBtn').disabled = true;
+function createWaveShaper(amount){try{const ws=AppState.audioCtx.createWaveShaper(),n=4096,curve=new Float32Array(n);for(let i=0;i<n;i++){const x=(i-n/2)/(n/2);curve[i]=(3+amount)*Math.tanh(x*5)/(Math.PI+amount*Math.abs(x));}ws.curve=curve;return ws;}catch(error){console.error('WaveShaper oluşturma hatası:',error);return null;}}
+function createSoftWaveShaper(amount){try{const ws=AppState.audioCtx.createWaveShaper(),n=4096,curve=new Float32Array(n);for(let i=0;i<n;i++){const x=(i-n/2)/(n/2);curve[i]=Math.tanh(x*(3+amount*0.1))*0.8;}ws.curve=curve;ws.oversample='4x';return ws;}catch(error){console.error('Yumuşak WaveShaper oluşturma hatası:',error);return null;}}
+function updateKickDistortionCurve(amount){if(!kickDistortion)return;try{const n=4096,curve=new Float32Array(n);for(let i=0;i<n;i++){const x=(i-n/2)/(n/2);curve[i]=Math.tanh(x*(3+amount*0.1))*0.8;}kickDistortion.curve=curve;}catch(error){console.error('Kick distorsiyon güncelleme hatası:',error);}}
+function updatePulseWidth(node,width){if(!node)return;try{const curve=new Float32Array(256);for(let i=0;i<256;i++){curve[i]=i<128*width?-1:1;}node.curve=curve;}catch(error){console.error('Pulse genişlik güncelleme hatası:',error);}}
+function createAudioNodes(){try{cleanupOscillators();cleanupAudioNodes();AppState.masterGain=AppState.audioCtx.createGain();AppState.synthGain=AppState.audioCtx.createGain();AppState.kickGain=AppState.audioCtx.createGain();AppState.effectsGain=AppState.audioCtx.createGain();updateAllVolumes();audioNodes.panner=AppState.audioCtx.createStereoPanner();audioNodes.panner.pan.value=0;audioNodes.distortion=createWaveShaper(50);audioNodes.distortionGain=AppState.audioCtx.createGain();audioNodes.distortionGain.gain.value=0;audioNodes.autoWah=AppState.audioCtx.createBiquadFilter();audioNodes.autoWah.type="bandpass";audioNodes.autoWah.frequency.value=800;audioNodes.autoWah.Q.value=5;audioNodes.autoWahLFO=AppState.audioCtx.createOscillator();audioNodes.autoWahLFO.frequency.value=1;audioNodes.autoWahGain=AppState.audioCtx.createGain();audioNodes.autoWahGain.gain.value=0;audioNodes.flangerDelay=AppState.audioCtx.createDelay(0.02);audioNodes.flangerDelay.delayTime.value=0.005;audioNodes.flangerLFO=AppState.audioCtx.createOscillator();audioNodes.flangerLFO.frequency.value=0.2;audioNodes.flangerGain=AppState.audioCtx.createGain();audioNodes.flangerGain.gain.value=0.005;audioNodes.flangerFeedback=AppState.audioCtx.createGain();audioNodes.flangerFeedback.gain.value=0.5;audioNodes.chorusDelay=AppState.audioCtx.createDelay(0.05);audioNodes.chorusDelay.delayTime.value=0.025;audioNodes.chorusLFO=AppState.audioCtx.createOscillator();audioNodes.chorusLFO.frequency.value=0.5;audioNodes.chorusGain=AppState.audioCtx.createGain();audioNodes.chorusGain.gain.value=0.01;audioNodes.tremoloLFO=AppState.audioCtx.createOscillator();audioNodes.tremoloLFO.frequency.value=5;audioNodes.tremoloGain=AppState.audioCtx.createGain();audioNodes.tremoloGain.gain.value=1;audioNodes.filter=AppState.audioCtx.createBiquadFilter();audioNodes.filter.type="lowpass";audioNodes.filter.frequency.value=8000;audioNodes.filter.Q.value=1;audioNodes.delay=AppState.audioCtx.createDelay(2);audioNodes.delay.delayTime.value=0.3;audioNodes.delayFeedback=AppState.audioCtx.createGain();audioNodes.delayFeedback.gain.value=0.5;audioNodes.reverb=AppState.audioCtx.createConvolver();const buffer=AppState.audioCtx.createBuffer(2,AppState.audioCtx.sampleRate*2,AppState.audioCtx.sampleRate);for(let c=0;c<2;c++){const d=buffer.getChannelData(c);for(let i=0;i<buffer.length;i++){d[i]=(Math.random()*2-1)*Math.pow(1-i/buffer.length,2);}}audioNodes.reverb.buffer=buffer;createKickNodes();createOscillators();connectAudioGraph();}catch(error){console.error('Ses düğümü oluşturma hatası:',error);showStatus('Ses kurulumu başarısız: '+error.message+' - Tekrar deneyelim!');}}
+function createKickNodes(){try{kickOsc=AppState.audioCtx.createOscillator();kickOsc.type='sine';kickGain=AppState.audioCtx.createGain();kickGain.gain.value=0;kickClickOsc=AppState.audioCtx.createOscillator();kickClickOsc.type='triangle';kickClickGain=AppState.audioCtx.createGain();kickClickGain.gain.value=0;kickFilter=AppState.audioCtx.createBiquadFilter();kickFilter.type='lowpass';kickFilter.frequency.value=1000;kickFilter.Q.value=1;kickDistortion=createSoftWaveShaper(15);kickCompressor=AppState.audioCtx.createDynamicsCompressor();kickCompressor.threshold.value=-24;kickCompressor.knee.value=30;kickCompressor.ratio.value=12;kickCompressor.attack.value=0.003;kickCompressor.release.value=0.25;kickOsc.connect(kickGain);kickClickOsc.connect(kickClickGain);kickGain.connect(kickFilter);kickClickGain.connect(kickFilter);kickFilter.connect(kickDistortion);kickDistortion.connect(kickCompressor);kickOsc.start();kickClickOsc.start();}catch(error){console.error('Kick düğümü oluşturma hatası:',error);}}
+function createOscillators(){try{const now=AppState.audioCtx.currentTime;for(let i=0;i<AppState.NUM_OSC;i++){let osc;if(AppState.waveType==='fm'){osc=AppState.audioCtx.createOscillator();osc.type='sine';const modulator=AppState.audioCtx.createOscillator();modulator.type='sine';modulator.frequency.value=AppState.baseFreq*2;const modGain=AppState.audioCtx.createGain();modGain.gain.value=100;modulator.connect(modGain);modGain.connect(osc.frequency);modulator.start(now);osc.modulator=modulator;osc.modGain=modGain;osc.connect(AppState.synthGain);}else if(AppState.waveType==='pulse'){osc=AppState.audioCtx.createOscillator();osc.type='square';const pulseWidth=AppState.audioCtx.createWaveShaper();updatePulseWidth(pulseWidth,AppState.pulseWidth);osc.connect(pulseWidth);pulseWidth.connect(AppState.synthGain);osc.pulseWidth=pulseWidth;}else{osc=AppState.audioCtx.createOscillator();osc.type=AppState.waveType;osc.connect(AppState.synthGain);}osc.detune.value=(i-Math.floor(AppState.NUM_OSC/2))*AppState.detuneAmount;osc.start(now);AppState.oscillators.push(osc);}}catch(error){console.error('Osilatör oluşturma hatası:',error);}}
+function startLFOs(){if(lfoStarted)return;try{if(audioNodes.autoWahLFO)audioNodes.autoWahLFO.start();if(audioNodes.flangerLFO)audioNodes.flangerLFO.start();if(audioNodes.chorusLFO)audioNodes.chorusLFO.start();if(audioNodes.tremoloLFO)audioNodes.tremoloLFO.start();lfoStarted=true;}catch(e){console.log('LFO başlatma hatası:',e);}}
+function connectAudioGraph(){if(!AppState.audioCtx)return;try{if(AppState.masterGain)AppState.masterGain.disconnect();if(AppState.synthGain)AppState.synthGain.disconnect();if(AppState.kickGain)AppState.kickGain.disconnect();if(AppState.effectsGain)AppState.effectsGain.disconnect();if(audioNodes.panner)audioNodes.panner.disconnect();Object.values(audioNodes).forEach(node=>{if(node&&typeof node.disconnect==='function'){try{node.disconnect();}catch(e){console.log('Düğüm bağlantı kesme hatası:',e);}}});startLFOs();let synthSignal=AppState.synthGain;if(effects.dist&&audioNodes.distortion){synthSignal.connect(audioNodes.distortion);synthSignal=audioNodes.distortion;}if(effects.autoWah&&audioNodes.autoWah){synthSignal.connect(audioNodes.autoWah);synthSignal=audioNodes.autoWah;}if(effects.flanger&&audioNodes.flangerDelay){synthSignal.connect(audioNodes.flangerDelay);audioNodes.flangerDelay.connect(audioNodes.flangerFeedback);audioNodes.flangerFeedback.connect(audioNodes.flangerDelay);synthSignal=audioNodes.flangerDelay;}if(effects.chorus&&audioNodes.chorusDelay){synthSignal.connect(audioNodes.chorusDelay);synthSignal=audioNodes.chorusDelay;}if(audioNodes.filter){synthSignal.connect(audioNodes.filter);synthSignal=audioNodes.filter;}if(effects.delay&&audioNodes.delay){synthSignal.connect(audioNodes.delay);audioNodes.delay.connect(audioNodes.delayFeedback);audioNodes.delayFeedback.connect(audioNodes.delay);synthSignal=audioNodes.delay;}if(effects.reverb&&audioNodes.reverb){synthSignal.connect(audioNodes.reverb);synthSignal=audioNodes.reverb;}if(effects.tremolo&&audioNodes.tremoloGain){synthSignal.connect(audioNodes.tremoloGain);synthSignal=audioNodes.tremoloGain;}if(audioNodes.panner){synthSignal.connect(audioNodes.panner);audioNodes.panner.connect(AppState.effectsGain);}if(kickCompressor){kickCompressor.connect(AppState.kickGain);}if(AppState.effectsGain)AppState.effectsGain.connect(AppState.masterGain);if(AppState.kickGain)AppState.kickGain.connect(AppState.masterGain);if(AppState.masterGain)AppState.masterGain.connect(AppState.audioCtx.destination);if(audioNodes.distortionGain){audioNodes.distortionGain.gain.value=effects.dist?1:0;}if(audioNodes.tremoloGain){audioNodes.tremoloGain.gain.value=effects.tremolo?0.5:1;}if(effects.autoWah&&audioNodes.autoWahLFO&&audioNodes.autoWahGain&&audioNodes.autoWah){audioNodes.autoWahLFO.connect(audioNodes.autoWahGain);audioNodes.autoWahGain.connect(audioNodes.autoWah.frequency);audioNodes.autoWahGain.gain.value=600;}else if(audioNodes.autoWahGain){audioNodes.autoWahGain.gain.value=0;}if(effects.flanger&&audioNodes.flangerLFO&&audioNodes.flangerGain&&audioNodes.flangerDelay){audioNodes.flangerLFO.connect(audioNodes.flangerGain);audioNodes.flangerGain.connect(audioNodes.flangerDelay.delayTime);}if(effects.chorus&&audioNodes.chorusLFO&&audioNodes.chorusGain&&audioNodes.chorusDelay){audioNodes.chorusLFO.connect(audioNodes.chorusGain);audioNodes.chorusGain.connect(audioNodes.chorusDelay.delayTime);}if(effects.tremolo&&audioNodes.tremoloLFO&&audioNodes.tremoloGain){audioNodes.tremoloLFO.connect(audioNodes.tremoloGain.gain);}}catch(error){console.error('Ses grafiği bağlantı hatası:',error);showStatus('Ses bağlantı hatası - Tekrar bağlanıyoruz!');}}
+function updateAllVolumes(){if(!AppState.audioCtx)return;const now=AppState.audioCtx.currentTime;try{if(AppState.masterGain){const masterVol=AppState.volumeSettings.master/100;AppState.masterGain.gain.setTargetAtTime(masterVol,now,0.02);}if(AppState.synthGain){const synthVol=AppState.volumeSettings.synth/100;AppState.synthGain.gain.setTargetAtTime(synthVol,now,0.02);}if(AppState.kickGain){const kickVol=AppState.volumeSettings.kick/100;AppState.kickGain.gain.setTargetAtTime(kickVol,now,0.02);}if(AppState.effectsGain){const effectsVol=AppState.volumeSettings.effects/100;AppState.effectsGain.gain.setTargetAtTime(effectsVol,now,0.02);}const masterValue=document.getElementById('masterVolumeValue'),synthValue=document.getElementById('synthVolumeValue'),kickValue=document.getElementById('kickVolumeValue'),effectsValue=document.getElementById('effectsVolumeValue');if(masterValue)masterValue.textContent=AppState.volumeSettings.master;if(synthValue)synthValue.textContent=AppState.volumeSettings.synth;if(kickValue)kickValue.textContent=AppState.volumeSettings.kick;if(effectsValue)effectsValue.textContent=AppState.volumeSettings.effects;}catch(error){console.error('Ses güncelleme hatası:',error);}}
+function createNoteRuler(){if(!elements.noteRuler)return;const notes=['C6','B5','A#5','A5','G#5','G5','F#5','F5','E5','D#5','D5','C#5','C5','B4','A#4','A4','G#4','G4','F#4','F4','E4','D#4','D4','C#4','C4'];elements.noteRuler.innerHTML='';notes.forEach(note=>{const div=document.createElement('div');div.className='ruler-note';div.textContent=note;elements.noteRuler.appendChild(div);});}
+function freqToNote(freq){const A4=440,semitonesFromA4=12*Math.log2(freq/A4),noteIndex=Math.round(semitonesFromA4+9)%12,octave=Math.floor((semitonesFromA4+9)/12),noteName=noteNames[(noteIndex+12)%12];return{name:noteName,octave:octave,fullName:`${noteName}${octave}`};}
+function updateThemeColor(color){try{document.documentElement.style.setProperty('--r',color[0]);document.documentElement.style.setProperty('--g',color[1]);document.documentElement.style.setProperty('--b',color[2]);const r=color[0]/255,g=color[1]/255,b=color[2]/255,max=Math.max(r,g,b),min=Math.min(r,g,b);let h,s,l=(max+min)/2;if(max===min){h=s=0;}else{const d=max-min;s=l>0.5?d/(2-max-min):d/(max+min);switch(max){case r:h=((g-b)/d+(g<b?6:0))/6;break;case g:h=((b-r)/d+2)/6;break;case b:h=((r-g)/d+4)/6;break;}}animationHue=Math.round(h*360);}catch(error){console.error('Tema rengi güncelleme hatası:',error);}}
+function noteFromPad(y){const padHeight=window.innerHeight,ratio=1-(y/padHeight),baseFreq=65.41*Math.pow(2,AppState.octaveOffset);return baseFreq*Math.pow(2,(ratio*24)/12);}
+function applyPitch(){if(!safeAudioOperation(()=>{const freq=AppState.baseFreq,noteInfo=freqToNote(freq);AppState.oscillators.forEach((osc,i)=>{if(osc&&osc.frequency){osc.frequency.setTargetAtTime(freq,AppState.audioCtx.currentTime,0.01);}});if(elements.noteDisplay){elements.noteDisplay.textContent=noteInfo.fullName;}const colorIndex=noteNames.indexOf(noteInfo.name);if(colorIndex!==-1)updateThemeColor(noteColors[colorIndex]);}))return;}
+function handleTouchStart(e){e.preventDefault();if(!isAudioContextValid()){showStatus('Lütfen önce synth\'i başlat! Yoksa çalamayız!');return;}const now=performance.now();if(now-lastTouchTime<8)return;lastTouchTime=now;Array.from(e.touches).forEach(touch=>{activeTouches.set(touch.identifier,{x:touch.clientX,y:touch.clientY});});if(e.touches[0]){handleTouchPosition(e.touches[0].clientX,e.touches[0].clientY);}}
+function handleTouchMove(e){e.preventDefault();if(!isAudioContextValid())return;const now=performance.now();if(now-lastTouchTime<8)return;lastTouchTime=now;Array.from(e.touches).forEach(touch=>{activeTouches.set(touch.identifier,{x:touch.clientX,y:touch.clientY});});if(e.touches.length===1&&e.touches[0]){handleTouchPosition(e.touches[0].clientX,e.touches[0].clientY);}}
+function handleTouchEnd(e){Array.from(e.changedTouches).forEach(touch=>{activeTouches.delete(touch.identifier);});}
+function handleTouchPosition(clientX,clientY){if(!elements.pad)return;const rect=elements.pad.getBoundingClientRect(),x=Math.max(0,Math.min(rect.width,clientX-rect.left)),y=Math.max(0,Math.min(rect.height,clientY-rect.top));touchPoint={x,y};AppState.baseFreq=noteFromPad(y);applyPitch();}
+function handleMouseDown(e){if(!isAudioContextValid()){showStatus('Lütfen önce synth\'i başlat! Yoksa çalamayız!');return;}handleTouchPosition(e.clientX,e.clientY);}
+function handleMouseMove(e){if(e.buttons===1){handleTouchPosition(e.clientX,e.clientY);}}
+function updatePan(position){if(!audioNodes.panner)return;safeAudioOperation(()=>{audioNodes.panner.pan.setTargetAtTime(position,AppState.audioCtx.currentTime,0.01);if(elements.panDisplay){const panPercent=Math.round(position*100);elements.panDisplay.textContent=`Pan:${panPercent}%`;}});}
+async function startSynth(){try{if(AppState.audioCtx){if(AppState.audioCtx.state !== 'running'){try{await AppState.audioCtx.close();}catch(e){}AppState.audioCtx = null;}else{showStatus('Synth sıfırlanıyor, biraz sabır...');cleanupOscillators();createAudioNodes();showStatus('Synth sıfırlandı, temiz başlangıç!');return;}}AppState.audioCtx=new(window.AudioContext||window.webkitAudioContext)();await AppState.audioCtx.resume();createAudioNodes();AppState.isPlaying=true;updateButtonStates();startWaveAnimation();showStatus('Synth başladı! Efektlerle eğlenmeye başla! 🎹');}catch(e){console.error('Başlatma hatası:',e);showStatus('Ses başlatılamadı: '+e.message+' - Tekrar deneyelim!');}}
+async function stopSynth(){
+    try {
+        cleanupOscillators();
         stopRhythm();
-        showStatus("Durduruldu.");
-    };
-
-    el('toggleControls').onclick = () => {
-        elements.controls.classList.toggle('expanded');
-        el('toggleControls').textContent = elements.controls.classList.contains('expanded') ? '✕' : '⚙️';
-    };
-
-    // Hareket Sensörü (DeviceOrientation)
-    el('motionBtn').onclick = () => {
-        if (AppState.motionEnabled) {
-            AppState.motionEnabled = false;
-            window.removeEventListener('deviceorientation', handleOrientation);
-            el('motionBtn').classList.remove('active');
-            el('motionDisplay').style.display = 'none';
-        } else {
-            // iOS 13+ İzin Kontrolü
-            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                DeviceOrientationEvent.requestPermission()
-                    .then(response => {
-                        if (response === 'granted') {
-                            enableMotion();
-                        } else showStatus("İzin reddedildi.");
-                    })
-                    .catch(console.error);
-            } else {
-                enableMotion();
+        stopWaveAnimation();
+      
+        if (AppState.audioCtx && AppState.audioCtx.state !== 'closed') {
+            // Master gain'ı sıfırla (fade-out efekti için)
+            if (AppState.masterGain) {
+                const now = AppState.audioCtx.currentTime;
+                AppState.masterGain.gain.setTargetAtTime(0.001, now, 0.02);
+              
+                // Kısa bir bekleme süresi ekle (fade-out için)
+                await new Promise(resolve => setTimeout(resolve, 50));
             }
+          
+            // Tüm ses düğümlerinin bağlantısını kes
+            cleanupAudioNodes();
+          
+            // Audio context'i kapat
+            await AppState.audioCtx.close();
+            AppState.audioCtx = null;
         }
-    };
-    
-    function enableMotion() {
-        AppState.motionEnabled = true;
-        window.addEventListener('deviceorientation', handleOrientation);
-        el('motionBtn').classList.add('active');
-        el('motionDisplay').style.display = 'block';
-        showStatus("Hareket sensörü aktif! Telefonu eğit.");
-    }
-
-    function handleOrientation(e) {
-        if (!AppState.motionEnabled || !AppState.isPlaying) return;
-        // Beta: Ön-arka eğimi (-180, 180) -> Pitch
-        // Gamma: Sağ-sol eğimi (-90, 90) -> Filter veya Pan
-        const tilt = e.beta || 0; 
-        const gamma = e.gamma || 0;
-        
-        el('motionDisplay').textContent = `Eğim: ${Math.round(tilt)}°`;
-        
-        // Hareketle frekans değişimi (kısım)
-        const baseFreq = 65.41 * Math.pow(2, AppState.octaveOffset);
-        const pitchMod = (tilt / 45); 
-        updatePitch(baseFreq * Math.pow(2, pitchMod));
-        
-        // Hareketle Pan (Pan aktifse)
-        if (AppState.panEnabled && nodes.panner) {
-            const panVal = Math.max(-1, Math.min(1, gamma / 45));
-            nodes.panner.pan.setTargetAtTime(panVal, AppState.audioCtx.currentTime, 0.1);
-            el('panDisplay').textContent = `Pan: ${Math.round(panVal*100)}%`;
-        }
-    }
-
-    // Pan Butonu
-    el('panBtn').onclick = () => {
-        AppState.panEnabled = !AppState.panEnabled;
-        el('panBtn').classList.toggle('active');
-        el('panDisplay').style.display = AppState.panEnabled ? 'block' : 'none';
-    };
-
-    // Efekt Toggle'ları
-    ['dist', 'autoWah', 'flanger', 'chorus', 'tremolo', 'delay', 'reverb'].forEach(fx => {
-        el(`toggle${fx.charAt(0).toUpperCase() + fx.slice(1)}`).onclick = (e) => {
-            AppState.effects[fx] = !AppState.effects[fx];
-            e.target.classList.toggle('active');
-            connectAudioGraph();
-            showStatus(`${fx.toUpperCase()} ${AppState.effects[fx] ? 'AÇIK' : 'KAPALI'}`);
-        };
-    });
-
-    // Ritim Kontrolleri
-    let rhythmInterval = null;
-    function startRhythm() {
-        if (rhythmInterval) return;
-        AppState.rhythmActive = true;
-        el('startRhythmBtn').disabled = true;
-        el('stopRhythmBtn').disabled = false;
-        
-        const interval = 60000 / AppState.settings.rhythm.bpm;
-        
-        rhythmInterval = setInterval(() => {
-            if (AppState.isPlaying) playKick();
-        }, interval);
-    }
-    
-    function stopRhythm() {
-        clearInterval(rhythmInterval);
-        rhythmInterval = null;
-        AppState.rhythmActive = false;
-        el('startRhythmBtn').disabled = false;
-        el('stopRhythmBtn').disabled = true;
-    }
-    
-    el('startRhythmBtn').onclick = startRhythm;
-    el('stopRhythmBtn').onclick = stopRhythm;
-    
-    // Kick Solo
-    el('kickSoloBtn').onclick = () => {
-        AppState.kickSolo = !AppState.kickSolo;
-        el('kickSoloBtn').classList.toggle('active');
-        connectAudioGraph();
-        showStatus(AppState.kickSolo ? "SOLO MODU: Sadece Kick!" : "Solo Modu Kapalı.");
-    };
-
-    // Animasyon Seçimi
-    el('animationSelect').onchange = (e) => {
-        AppState.settings.anim.type = e.target.value;
-        Visuals.initParticles(); // Reset
-    };
-
-    // Input Ranges (Değer Güncelleme)
-    const bindRange = (id, obj, key, scale = 1, suffix = '') => {
-        const input = el(id);
-        input.oninput = (e) => {
-            obj[key] = parseFloat(e.target.value) / scale;
-            if(el(id+'Value')) el(id+'Value').textContent = e.target.value + suffix;
-            
-            // Özel durumlar
-            if (id === 'masterVolume' && nodes.master) 
-                nodes.master.gain.setTargetAtTime(obj[key], AppState.audioCtx.currentTime, 0.05);
-            if (id === 'synthVolume' && nodes.synthGain) 
-                nodes.synthGain.gain.setTargetAtTime(obj[key], AppState.audioCtx.currentTime, 0.05);
-            if (id === 'kickVolume' && nodes.kickGain) 
-                nodes.kickGain.gain.setTargetAtTime(obj[key], AppState.audioCtx.currentTime, 0.05);
-            if (id === 'filterFreq' && nodes.filter) 
-                nodes.filter.frequency.setTargetAtTime(obj[key], AppState.audioCtx.currentTime, 0.05);
-            if (id === 'filterRes' && nodes.filter) 
-                nodes.filter.Q.setTargetAtTime(obj[key], AppState.audioCtx.currentTime, 0.05);
-            if (id === 'rhythmSpeed' && AppState.rhythmActive) {
-                stopRhythm(); startRhythm();
+      
+        AppState.masterGain = null;
+        AppState.synthGain = null;
+        AppState.kickGain = null;
+        AppState.effectsGain = null;
+        AppState.isPlaying = false;
+        updateButtonStates();
+        showStatus('Synth durdu, sessizliğe hoş geldin! 🤫');
+      
+    } catch (e) {
+        console.error('Durdurma hatası:', e);
+      
+        // Hata durumunda daha agresif temizlik
+        if (AppState.audioCtx) {
+            try {
+                cleanupOscillators();
+                cleanupAudioNodes();
+                await AppState.audioCtx.close();
+            } catch (err) {
+                console.error('Temizleme hatası:', err);
             }
-        };
-    };
-
-    bindRange('masterVolume', AppState.settings.volume, 'master', 100);
-    bindRange('synthVolume', AppState.settings.volume, 'synth', 100);
-    bindRange('kickVolume', AppState.settings.volume, 'kick', 100);
-    bindRange('filterFreq', AppState.settings, 'filterFreq', 1);
-    bindRange('filterRes', AppState.settings, 'filterRes', 1);
-    bindRange('rhythmSpeed', AppState.settings.rhythm, 'bpm', 1);
-    bindRange('rhythmIntensity', AppState.settings.rhythm, 'intensity', 100);
-    bindRange('animSpeed', AppState.settings.anim, 'speed', 10);
-    bindRange('animIntensity', AppState.settings.anim, 'intensity', 10);
-    
-    el('kickPunch').oninput = (e) => { 
-        AppState.settings.kick.punch = parseInt(e.target.value);
-        el('kickPunchValue').textContent = e.target.value;
-    };
-    el('kickDistortion').oninput = (e) => {
-        AppState.settings.kick.drive = parseInt(e.target.value);
-        el('kickDistortionValue').textContent = e.target.value;
-    };
-    
-    // Diğer UI
-    el('waveSelect').onchange = (e) => {
-        AppState.settings.waveType = e.target.value;
-        // Osilatörleri yeniden oluşturmak gerekebilir ama basitçe tipi değiştirelim
-        AppState.oscillators.forEach(o => o.type = AppState.settings.waveType);
-        showStatus("Dalga Formu: " + e.target.value);
-    };
-    
-    el('octUp').onclick = () => { AppState.octaveOffset++; showStatus("Oktav: " + AppState.octaveOffset); };
-    el('octDown').onclick = () => { AppState.octaveOffset--; showStatus("Oktav: " + AppState.octaveOffset); };
-
-    // Candy Rain Easter Egg
-    el('credit').onclick = (e) => {
-        e.preventDefault();
-        showStatus("Şeker yağmuru! 🍬");
-        const candies = ['🍬', '🍭', '🍫', '🍩'];
-        for(let i=0; i<30; i++) {
-            const div = document.createElement('div');
-            div.className = 'candy';
-            div.textContent = candies[Math.floor(Math.random()*candies.length)];
-            div.style.left = Math.random() * 100 + 'vw';
-            div.style.animationDuration = (2 + Math.random() * 3) + 's';
-            div.style.fontSize = (20 + Math.random() * 20) + 'px';
-            document.body.appendChild(div);
-            setTimeout(() => div.remove(), 5000);
+            AppState.audioCtx = null;
         }
-    };
-
-    // Modal İzinleri
-    el('permissionAllow').onclick = () => {
-        elements.modal.style.display = 'none';
-        enableMotion();
-    };
-    el('permissionDeny').onclick = () => {
-        elements.modal.style.display = 'none';
-    };
-    
-    // Klavye Desteği
-    document.addEventListener('keydown', (e) => {
-        if (e.code === 'Space') {
-            if(AppState.rhythmActive) stopRhythm();
-            else if(AppState.isPlaying) startRhythm();
-        }
-    });
+      
+        // State'i sıfırla
+        AppState.masterGain = null;
+        AppState.synthGain = null;
+        AppState.kickGain = null;
+        AppState.effectsGain = null;
+        AppState.isPlaying = false;
+      
+        updateButtonStates();
+        showStatus('Synth temizlikle durdu, her şey tertemiz! 🧹');
+    }
 }
-
-// Başlangıç
-setupEventListeners();
-// Not cetvelini oluştur
-const ruler = el('noteRuler');
-NOTE_NAMES.reverse().forEach(n => {
-    const d = document.createElement('div');
-    d.className = 'ruler-note';
-    d.textContent = n;
-    ruler.appendChild(d);
-});
-
+function toggleControls(){if(!elements.controls||!elements.toggleControls)return;elements.controls.classList.toggle('expanded');elements.toggleControls.textContent=elements.controls.classList.contains('expanded')?'✕':'⚙️';}
+function requestMotionPermission(){if(typeof DeviceOrientationEvent.requestPermission==='function'){if(elements.permissionModal){elements.permissionModal.style.display='flex';}}else{startMotionControl();}}
+function startMotionControl(){window.addEventListener("deviceorientation",handleOrientation);AppState.motionEnabled=true;if(elements.motionDisplay){elements.motionDisplay.style.display='block';}updateButtonStates();showStatus('Hareket aktif! Cihazı eğerek perdeyi kontrol et, dikkatli ol! 📱');}
+function disableMotion(){window.removeEventListener("deviceorientation",handleOrientation);AppState.motionEnabled=false;AppState.tiltBend=0;if(elements.motionDisplay){elements.motionDisplay.style.display='none';}updateButtonStates();showStatus('Hareket devre dışı, artık sallanma! 🛑');}
+function togglePan(){AppState.panEnabled=!AppState.panEnabled;if(elements.panDisplay){elements.panDisplay.style.display=AppState.panEnabled?'block':'none';}updateButtonStates();if(!AppState.panEnabled){updatePan(0);}showStatus(AppState.panEnabled?'Pan aktif! Yana eğerek stereo kaydır, sallanmak serbest! 🎛️':'Pan devre dışı, artık düz dur! 🛑');}
+function handleOrientation(e){const now=performance.now();if(now-lastOrientationTime<30)return;lastOrientationTime=now;if(e.beta===null||e.gamma===null)return;const tilt=Math.max(-90,Math.min(90,e.beta)),pan=Math.max(-90,Math.min(90,e.gamma));if(AppState.motionEnabled){AppState.tiltBend=tilt/45*12;const baseFreq=65.41*Math.pow(2,AppState.octaveOffset);AppState.baseFreq=baseFreq*Math.pow(2,AppState.tiltBend/12);if(elements.motionDisplay){elements.motionDisplay.textContent=`Eğim:${Math.round(AppState.tiltBend*10)/10}yarımton`;}applyPitch();}if(AppState.panEnabled&&pan!==null){const panValue=Math.max(-1,Math.min(1,pan/90));updatePan(panValue);}}
+function toggleKickSolo(){if(!AppState.audioCtx){showStatus('Lütfen önce synth\'i başlat!');return;}AppState.kickSolo=!AppState.kickSolo;if(AppState.kickSolo){if(AppState.effectsGain){AppState.effectsGain.disconnect();}showStatus('Kick solo AÇIK! Sadece bas davul, diğerleri kıskanıyor! 🥁');}else{connectAudioGraph();showStatus('Kick solo KAPALI, herkes geri döndü! 🎵');}updateButtonStates();}
+function startRhythm(){if(!isAudioContextValid()){showStatus('Lütfen önce synth\'i başlat!');return;}stopRhythm();AppState.rhythmActive=true;updateButtonStates();let beat=0;rhythmInterval=setInterval(()=>{if(!isAudioContextValid()){stopRhythm();return;}playKick(beat);if(beat%8===0){const randomColor=noteColors[Math.floor(Math.random()*noteColors.length)];updateThemeColor(randomColor);}beat++;},60000/AppState.rhythmSpeed);showStatus('Ritim başladı, ayaklar yerden kesilebilir! 💃');}
+function stopRhythm(){AppState.rhythmActive=false;if(rhythmInterval){clearInterval(rhythmInterval);rhythmInterval=null;}updateButtonStates();showStatus('Ritim durdu, ayaklar yere basıyor! 🛑');}
+function updateRhythmSpeed(value){AppState.rhythmSpeed=parseInt(value);const display=document.getElementById('rhythmSpeedValue');if(display)display.textContent=value;if(AppState.rhythmActive){stopRhythm();startRhythm();}}
+function updateRhythmIntensity(value){AppState.rhythmIntensity=parseInt(value);const display=document.getElementById('rhythmIntensityValue');if(display)display.textContent=value;}
+function updateKickPattern(value){AppState.kickSettings.pattern=value;}
+function updateKickPunch(value){AppState.kickSettings.punch=parseInt(value);const display=document.getElementById('kickPunchValue');if(display)display.textContent=value;}
+function updateKickBass(value){AppState.kickSettings.bass=parseInt(value);const display=document.getElementById('kickBassValue');if(display)display.textContent=value;}
+function updateKickDistortion(value){AppState.kickSettings.distortion=parseInt(value);const display=document.getElementById('kickDistortionValue');if(display)display.textContent=value;}
+function updateKickSweep(value){AppState.kickSettings.sweep=parseInt(value);const display=document.getElementById('kickSweepValue');if(display)display.textContent=value;}
+function updateMasterVolume(value){AppState.volumeSettings.master=parseInt(value);updateAllVolumes();}
+function updateSynthVolume(value){AppState.volumeSettings.synth=parseInt(value);updateAllVolumes();}
+function updateKickVolume(value){AppState.volumeSettings.kick=parseInt(value);updateAllVolumes();}
+function updateEffectsVolume(value){AppState.volumeSettings.effects=parseInt(value);updateAllVolumes();}
+function startWaveAnimation(){const canvas=elements.waveCanvas;if(!canvas)return;const ctx=canvas.getContext('2d');function resize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;if(animations[AppState.currentAnimation].init){animations[AppState.currentAnimation].init();}}resize();if(resizeHandler){window.removeEventListener('resize',resizeHandler);}resizeHandler=resize;window.addEventListener('resize',resize);function animate(time){if(!AppState.isPlaying||!animationFrameId)return;animationFrameId=requestAnimationFrame(animate);const timeSec=time*0.001;try{animations[AppState.currentAnimation].draw(ctx,timeSec);}catch(e){console.error('Animasyon hatası:',e);}}stopWaveAnimation();animationFrameId=requestAnimationFrame(animate);}
+function stopWaveAnimation(){if(animationFrameId){cancelAnimationFrame(animationFrameId);animationFrameId=null;}if(resizeHandler){window.removeEventListener('resize',resizeHandler);resizeHandler=null;}const ctx=elements.waveCanvas?.getContext('2d');if(ctx){ctx.clearRect(0,0,elements.waveCanvas.width,elements.waveCanvas.height);}}
+function setAnimation(animationName){AppState.currentAnimation=animationName;if(AppState.isPlaying){stopWaveAnimation();startWaveAnimation();}showStatus(`Animasyon: ${animationName==='none'?'Yok - sadece müzik, gözler dinlensin! 👀':animationName+' - gözlerin bayram etsin! 🎇'}`);}
+function updateAnimationSpeed(value){AppState.animationSpeed=parseFloat(value);const display=document.getElementById('animSpeedValue');if(display)display.textContent=value;}
+function updateAnimationIntensity(value){AppState.animationIntensity=parseFloat(value);const display=document.getElementById('animIntensityValue');if(display)display.textContent=value;}
+function updateValueDisplays(){const detuneDisplay=document.getElementById('detuneValue'),filterFreqDisplay=document.getElementById('filterFreqValue'),filterResoDisplay=document.getElementById('filterResoValue'),wahRateDisplay=document.getElementById('autoWahRateValue'),wahDepthDisplay=document.getElementById('autoWahDepthValue');if(detuneDisplay)detuneDisplay.textContent=AppState.detuneAmount;if(filterFreqDisplay)filterFreqDisplay.textContent=audioNodes.filter?Math.round(audioNodes.filter.frequency.value):8000;if(filterResoDisplay)filterResoDisplay.textContent=audioNodes.filter?audioNodes.filter.Q.value:1;if(wahRateDisplay)wahRateDisplay.textContent=audioNodes.autoWahLFO?audioNodes.autoWahLFO.frequency.value:1;if(wahDepthDisplay)wahDepthDisplay.textContent=audioNodes.autoWahGain?Math.round(audioNodes.autoWahGain.gain.value):800;}
+function getCandyFromPool(){if(candyPool.length>0){return candyPool.pop();}const candy=document.createElement('div');candy.className='candy';return candy;}
+function returnCandyToPool(candy){candyPool.push(candy);}
+function createCandyRain(){const candies=['🍬','🍭','🍫','🍩','🍪','🎂','🍰','🧁','🍦','🍡'],duration=3000,startTime=Date.now();function createCandy(){if(Date.now()-startTime>duration)return;const candy=getCandyFromPool();candy.textContent=candies[Math.floor(Math.random()*candies.length)];candy.style.left=Math.random()*window.innerWidth+'px';candy.style.top='-50px';document.body.appendChild(candy);const animation=candy.animate([{transform:`translateY(0px) rotate(0deg)`,opacity:1},{transform:`translateY(${window.innerHeight+50}px) rotate(360deg)`,opacity:0}],{duration:1000+Math.random()*2000,easing:'cubic-bezier(0.1,0.2,0.8,0.9)'});animation.onfinish=()=>{candy.remove();returnCandyToPool(candy);};setTimeout(createCandy,100+Math.random()*200);}createCandy();}
+function initializeEventListeners(){try{if(elements.pad){elements.pad.addEventListener("touchstart",handleTouchStart,{passive:false});elements.pad.addEventListener("touchmove",handleTouchMove,{passive:false});elements.pad.addEventListener("touchend",handleTouchEnd);elements.pad.addEventListener("touchcancel",handleTouchEnd);elements.pad.addEventListener("mousedown",handleMouseDown);elements.pad.addEventListener("mousemove",handleMouseMove);elements.pad.addEventListener("mouseup",handleTouchEnd);elements.pad.addEventListener("mouseleave",handleTouchEnd);}if(elements.startBtn)elements.startBtn.addEventListener("click",startSynth);if(elements.stopBtn)elements.stopBtn.addEventListener("click",stopSynth);if(elements.motionBtn)elements.motionBtn.addEventListener("click",()=>{AppState.motionEnabled?disableMotion():requestMotionPermission();});if(elements.panBtn)elements.panBtn.addEventListener("click",togglePan);if(elements.toggleControls)elements.toggleControls.addEventListener("click",toggleControls);if(elements.startRhythmBtn)elements.startRhythmBtn.addEventListener("click",startRhythm);if(elements.stopRhythmBtn)elements.stopRhythmBtn.addEventListener("click",stopRhythm);if(elements.kickSoloBtn)elements.kickSoloBtn.addEventListener("click",toggleKickSolo);if(elements.masterVolume)elements.masterVolume.addEventListener("input",e=>updateMasterVolume(e.target.value));if(elements.synthVolume)elements.synthVolume.addEventListener("input",e=>updateSynthVolume(e.target.value));if(elements.kickVolume)elements.kickVolume.addEventListener("input",e=>updateKickVolume(e.target.value));if(elements.effectsVolume)elements.effectsVolume.addEventListener("input",e=>updateEffectsVolume(e.target.value));if(elements.kickPattern)elements.kickPattern.addEventListener("change",e=>updateKickPattern(e.target.value));if(elements.kickPunch)elements.kickPunch.addEventListener("input",e=>updateKickPunch(e.target.value));if(elements.kickBass)elements.kickBass.addEventListener("input",e=>updateKickBass(e.target.value));if(elements.kickDistortion)elements.kickDistortion.addEventListener("input",e=>updateKickDistortion(e.target.value));if(elements.kickSweep)elements.kickSweep.addEventListener("input",e=>updateKickSweep(e.target.value));const octUp=document.getElementById("octUp"),octDown=document.getElementById("octDown");if(octUp)octUp.addEventListener("click",()=>{AppState.octaveOffset++;applyPitch();createNoteRuler();});if(octDown)octDown.addEventListener("click",()=>{AppState.octaveOffset--;applyPitch();createNoteRuler();});const permissionAllow=document.getElementById("permissionAllow"),permissionDeny=document.getElementById("permissionDeny");if(permissionAllow){permissionAllow.addEventListener("click",async()=>{try{const response=await DeviceOrientationEvent.requestPermission();if(elements.permissionModal){elements.permissionModal.style.display='none';}if(response==='granted'){startMotionControl();}else{showStatus('Hareket izni reddedildi, sensörlere erişemiyoruz! 😢');}}catch(e){console.error('İzin hatası:',e);if(elements.permissionModal){elements.permissionModal.style.display='none';}showStatus('İzin isteği başarısız, bir şeyler ters gitti! 🤔');}});}if(permissionDeny){permissionDeny.addEventListener("click",()=>{if(elements.permissionModal){elements.permissionModal.style.display='none';}showStatus('Hareket erişimi reddedildi! 🚫');});}const waveSelect=document.getElementById("waveSelect"),detuneRange=document.getElementById("detuneRange"),filterFreq=document.getElementById("filterFreq"),filterReso=document.getElementById("filterReso"),autoWahRate=document.getElementById("autoWahRate"),autoWahDepth=document.getElementById("autoWahDepth");if(waveSelect)waveSelect.addEventListener("change",e=>{AppState.waveType=e.target.value;cleanupOscillators();createOscillators();connectAudioGraph();showStatus('Dalga türü: '+AppState.waveType+' - bu dalga seni götürecek! 🌊');});if(detuneRange)detuneRange.addEventListener("input",e=>{AppState.detuneAmount=parseFloat(e.target.value);const display=document.getElementById('detuneValue');if(display)display.textContent=e.target.value;if(AppState.oscillators.length>0){AppState.oscillators.forEach((osc,i)=>{if(osc&&osc.detune){osc.detune.value=(i-Math.floor(AppState.NUM_OSC/2))*AppState.detuneAmount;}});}});if(filterFreq)filterFreq.addEventListener("input",e=>{const value=parseFloat(e.target.value),display=document.getElementById('filterFreqValue');if(display)display.textContent=Math.round(value);if(audioNodes.filter){audioNodes.filter.frequency.setTargetAtTime(value,AppState.audioCtx.currentTime,0.01);}});if(filterReso)filterReso.addEventListener("input",e=>{const value=parseFloat(e.target.value),display=document.getElementById('filterResoValue');if(display)display.textContent=value;if(audioNodes.filter){audioNodes.filter.Q.setTargetAtTime(value,AppState.audioCtx.currentTime,0.01);}});if(autoWahRate)autoWahRate.addEventListener("input",e=>{const value=parseFloat(e.target.value),display=document.getElementById('autoWahRateValue');if(display)display.textContent=value;if(audioNodes.autoWahLFO){audioNodes.autoWahLFO.frequency.setTargetAtTime(value,AppState.audioCtx.currentTime,0.01);}});if(autoWahDepth)autoWahDepth.addEventListener("input",e=>{const value=parseFloat(e.target.value),display=document.getElementById('autoWahDepthValue');if(display)display.textContent=Math.round(value);if(audioNodes.autoWahGain){audioNodes.autoWahGain.gain.setTargetAtTime(value,AppState.audioCtx.currentTime,0.01);}});const toggleMap={toggleDist:'dist',toggleAutoWah:'autoWah',toggleFlanger:'flanger',toggleChorus:'chorus',toggleTremolo:'tremolo',toggleDelay:'delay',toggleReverb:'reverb'};Object.entries(toggleMap).forEach(([id,effect])=>{const element=document.getElementById(id);if(element){element.addEventListener("click",()=>{effects[effect]=!effects[effect];element.classList.toggle('active',effects[effect]);connectAudioGraph();const durum=effects[effect]?'AÇIK':'KAPALI';let mesaj='';switch(effect){case'dist':mesaj='Distorsiyon '+durum+' - kulakların çınlayabilir! 🤘';break;case'autoWah':mesaj='Auto Wah '+durum+' - vak vak vak! 🦆';break;case'flanger':mesaj='Flanger '+durum+' - uçuyoruz! ✈️';break;case'chorus':mesaj='Chorus '+durum+' - sanki bir korodayız! 🎤';break;case'tremolo':mesaj='Tremolo '+durum+' - titreme modu! 🥶';break;case'delay':mesaj='Delay '+durum+' - yankılanma zamanı! 🗣️';break;case'reverb':mesaj='Reverb '+durum+' - mağara etkisi! 🏔️';break;}showStatus(mesaj);if(effect==='autoWah'&&elements.wahDisplay){elements.wahDisplay.style.display=effects[effect]?'block':'none';elements.wahDisplay.textContent='Wah:'+(effects[effect]?'AÇIK':'KAPALI');}});}});const rhythmSpeed=document.getElementById("rhythmSpeed"),rhythmIntensity=document.getElementById("rhythmIntensity");if(rhythmSpeed)rhythmSpeed.addEventListener("input",e=>updateRhythmSpeed(e.target.value));if(rhythmIntensity)rhythmIntensity.addEventListener("input",e=>updateRhythmIntensity(e.target.value));if(elements.animationSelect)elements.animationSelect.addEventListener("change",e=>setAnimation(e.target.value));if(elements.animSpeed)elements.animSpeed.addEventListener("input",e=>updateAnimationSpeed(e.target.value));if(elements.animIntensity)elements.animIntensity.addEventListener("input",e=>updateAnimationIntensity(e.target.value));if(elements.credit){elements.credit.addEventListener("click",function(e){e.preventDefault();createCandyRain();showStatus('Tatlı! Şeker yağmuru! 🍬 - şekerlemeler yağıyor! 🌧️');});}document.addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();AppState.rhythmActive?stopRhythm():startRhythm();}});window.addEventListener('beforeunload',()=>{stopSynth();disableMotion();stopWaveAnimation();});}catch(error){console.error('Olay dinleyici başlatma hatası:',error);}}
+window.addEventListener('load',()=>{try{updateThemeColor([255,100,100]);initializeEventListeners();updateButtonStates();createNoteRuler();updateValueDisplays();updateAllVolumes();showStatus('Hazır - Başlamak için Başlat\'a tıkla! Ritim kontrolü için BOŞLUK tuşunu kullan! 🎮');}catch(error){console.error('Uygulama başlatma hatası:',error);}});
+window.addEventListener("contextmenu",e=>e.preventDefault());
 </script>
 </body>
 </html>
